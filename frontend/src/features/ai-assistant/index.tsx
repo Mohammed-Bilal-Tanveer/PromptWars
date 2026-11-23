@@ -104,7 +104,7 @@ export function AssistantPanel({ embedded, context }: { embedded?: boolean; cont
               {m.reply.references.length > 0 && (
                 <div className="flex flex-wrap gap-1.5" aria-label="References">
                   {m.reply.references.map((r) => (
-                    <button key={`${r.type}-${r.id}`} type="button" onClick={() => refTo(r)} className="min-h-9 rounded-full border border-line-strong bg-surface px-3 text-xs font-medium text-fg hover:bg-surface2">
+                    <button key={`${r.type}-${r.id}`} type="button" onClick={() => refTo(r)} className="min-h-11 rounded-full border border-control-border bg-surface px-3 text-xs sm:min-h-9 font-medium text-fg hover:bg-surface2">
                       {r.label}
                     </button>
                   ))}

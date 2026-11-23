@@ -95,6 +95,17 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
   },
 }))
 
+/** Follow later OS prefers-reduced-motion changes (a manual toggle in Settings applies until the OS setting next changes). */
+export function watchReducedMotion(mq: Pick<MediaQueryList, 'matches' | 'addEventListener' | 'removeEventListener'> | null | undefined): () => void {
+  if (!mq?.addEventListener) return () => {}
+  const on = (e: { matches: boolean }) => useExplorerStore.setState({ reduceMotion: e.matches })
+  mq.addEventListener('change', on)
+  return () => mq.removeEventListener('change', on)
+}
+try {
+  if (typeof window !== 'undefined') watchReducedMotion(window.matchMedia?.('(prefers-reduced-motion: reduce)'))
+} catch { /* matchMedia unavailable */ }
+
 export function panelForInteractable(o: Interactable): PanelState | null {
   switch (o.type) {
     case 'department': return { kind: 'department', recordId: o.recordId }

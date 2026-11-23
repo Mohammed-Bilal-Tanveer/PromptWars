@@ -48,6 +48,8 @@ describe('BookingForm', () => {
     await u.click(screen.getByRole('button', { name: /submit request/i }))
     expect(await screen.findByText(/Enter a project title/)).toBeInTheDocument()
     expect(screen.getByText(/Describe the purpose/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Project title/)).toHaveFocus()
+    expect(screen.getByLabelText(/Project title/)).toHaveAttribute('aria-invalid', 'true')
     expect(m.createRequest).not.toHaveBeenCalled()
   })
 

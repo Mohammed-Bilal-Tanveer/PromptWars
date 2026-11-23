@@ -152,11 +152,17 @@ export function NotificationCenter({ embedded }: { embedded?: boolean }) {
   const markAll = useMarkAllRead()
   const nav = useNavigate()
   const root = useRef<HTMLDivElement>(null)
+  const bell = useRef<HTMLButtonElement>(null)
   const unread = q.data?.unread_count ?? 0
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onKey = (e: KeyboardEvent) => {
+      // Leave Esc to an open dialog (it handles its own close); otherwise close the panel and hand focus back to the bell.
+      if (e.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return
+      setOpen(false)
+      bell.current?.focus()
+    }
     const onClick = (e: MouseEvent) => { if (root.current && !root.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onClick)
@@ -170,13 +176,13 @@ export function NotificationCenter({ embedded }: { embedded?: boolean }) {
   return (
     <div ref={root} className="relative">
       <button
+        ref={bell}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`Notifications, ${unread} unread`}
         aria-expanded={open}
-        aria-haspopup="dialog"
         className={cx(
-          'relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-line-strong bg-surface text-muted shadow-card transition-colors hover:bg-surface2 hover:text-fg lg:min-h-10 lg:min-w-10',
+          'relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-control-border bg-surface text-muted shadow-card transition-colors hover:bg-surface2 hover:text-fg lg:min-h-10 lg:min-w-10',
           open && 'bg-surface2 text-fg',
         )}
       >
@@ -184,7 +190,7 @@ export function NotificationCenter({ embedded }: { embedded?: boolean }) {
         {unread > 0 && <span className="tnum absolute -right-1.5 -top-1.5 min-w-5 rounded-full border-2 border-surface bg-red-600 px-1 text-center text-[11px] font-semibold leading-4 text-white">{unread > 99 ? '99+' : unread}</span>}
       </button>
       {open && (
-        <div role="dialog" aria-label="Notifications" className={`absolute right-0 z-50 mt-2 max-h-[70vh] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-3 text-fg shadow-pop ${embedded ? 'bottom-full mb-2 mt-0' : ''}`}>
+        <div role="region" aria-label="Notifications panel" className={`absolute right-0 z-50 mt-2 max-h-[70vh] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-3 text-fg shadow-pop ${embedded ? 'bottom-full mb-2 mt-0' : ''}`}>
           <div className="mb-2 flex items-center justify-between gap-2 px-1">
             <h2 className="text-[15px] font-semibold">Notifications</h2>
             <Button size="sm" variant="secondary" disabled={unread === 0 || markAll.isPending} onClick={() => markAll.mutate()}>Mark all read</Button>

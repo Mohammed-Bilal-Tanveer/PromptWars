@@ -45,7 +45,7 @@ export function ApprovalDesk({ embedded }: { embedded?: boolean }) {
                 key={s}
                 className={cx(
                   'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors lg:min-h-10',
-                  statuses.includes(s) ? 'border-brand-muted bg-brand-subtle text-brand-fg' : 'border-line-strong bg-surface hover:bg-surface2',
+                  statuses.includes(s) ? 'border-brand-muted bg-brand-subtle text-brand-fg' : 'border-control-border bg-surface hover:bg-surface2',
                 )}
               >
                 <input type="checkbox" className="h-4 w-4 accent-[#1d4ed8]" checked={statuses.includes(s)} onChange={() => toggle(s)} />

@@ -15,6 +15,7 @@
   --color-surface2: #f2f4f7;    /* insets, hover, secondary fills */
   --color-line: #e4e7ec;        /* default 1px borders */
   --color-line-strong: #cfd4dc; /* input borders, dividers that must be visible */
+  --color-control-border: #8a94a6; /* form control borders (>= 3:1 on white, WCAG 1.4.11) */
   --color-fg: #101828;          /* primary text */
   --color-muted: #475467;       /* secondary text */
   --color-subtle: #5d6b82;      /* captions / metadata (still AA on white and bg) */
@@ -111,7 +112,7 @@ body {
 
 /* Busy/maintenance hatch used by availability bars */
 .hatch-busy {
-  background-color: #94a3b8;
+  background-color: #64748b;
   background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.35) 0 4px, transparent 4px 8px);
 }
 .hatch-maint {

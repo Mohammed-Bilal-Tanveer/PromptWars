@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/lib/routes'
 import {
@@ -51,11 +51,11 @@ function Wordmark() {
 export function ModeSwitch({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const seg = 'inline-flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-semibold transition-colors lg:min-h-9'
   return (
-    <nav aria-label="Interface mode" className={cx('inline-flex overflow-hidden rounded-lg border border-line-strong bg-surface shadow-card', className)}>
+    <nav aria-label="Interface mode" className={cx('inline-flex overflow-hidden rounded-lg border border-control-border bg-surface shadow-card', className)}>
       <span aria-current="page" className={cx(seg, 'bg-brand-subtle text-brand-fg')}>
         <IconClipboard size={16} />Professional<span className="max-sm:sr-only">&nbsp;Mode</span>
       </span>
-      <Link to={ROUTES.campus3d} onClick={onNavigate} className={cx(seg, 'border-l border-line-strong text-muted hover:bg-surface2 hover:text-fg')}>
+      <Link to={ROUTES.campus3d} onClick={onNavigate} className={cx(seg, 'border-l border-control-border text-muted hover:bg-surface2 hover:text-fg')}>
         <IconCube size={16} />3D<span className="max-sm:sr-only">&nbsp;Campus Mode</span>
       </Link>
     </nav>
@@ -124,6 +124,20 @@ export function ProfessionalLayout() {
   const [q, setQ] = useState('')
   const setGuided = useAppStore((s) => s.setGuidedDemoOpen)
   const { data: cfg } = usePublicConfig()
+  const mainRef = useRef<HTMLElement>(null)
+  const firstRoute = useRef(true)
+
+  // On navigation: name the page for screen readers / history and move focus to <main> (not on first load).
+  useEffect(() => {
+    const heading = mainRef.current?.querySelector('h1')?.textContent?.trim()
+    const route = [...NAV].sort((a, b) => b.to.length - a.to.length).find((n) => (n.end ? loc.pathname === n.to : loc.pathname === n.to || loc.pathname.startsWith(`${n.to}/`)))
+    const name = heading || route?.label
+    document.title = name ? `${name} · LabLink` : 'LabLink'
+    if (firstRoute.current) { firstRoute.current = false; return }
+    // Deferred so it lands after the nav drawer (if open) has closed and restored focus to its trigger.
+    const h = setTimeout(() => mainRef.current?.focus({ preventScroll: true }), 0)
+    return () => clearTimeout(h)
+  }, [loc.pathname])
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault()
@@ -147,7 +161,7 @@ export function ProfessionalLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-line bg-surface/95 px-3 py-2.5 sm:px-6">
           <button
-            className="grid min-h-11 min-w-11 place-items-center rounded-lg border border-line-strong bg-surface text-muted hover:bg-surface2 hover:text-fg lg:hidden"
+            className="grid min-h-11 min-w-11 place-items-center rounded-lg border border-control-border bg-surface text-muted hover:bg-surface2 hover:text-fg lg:hidden"
             aria-label="Open navigation menu"
             onClick={() => setDrawer(true)}
           >
@@ -163,7 +177,7 @@ export function ProfessionalLayout() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search equipment, labs, capabilities…"
-                className="min-h-11 w-full min-w-0 rounded-lg border border-line-strong bg-surface pl-10 pr-3 text-sm text-fg placeholder:text-subtle hover:border-[#b5bcc7] focus:border-brand lg:min-h-10"
+                className="min-h-11 w-full min-w-0 rounded-lg border border-control-border bg-surface pl-10 pr-3 text-sm text-fg placeholder:text-subtle hover:border-subtle focus:border-brand lg:min-h-10"
               />
             </div>
             <Button type="submit" variant="secondary" aria-label="Search" className="px-3">
@@ -187,7 +201,7 @@ export function ProfessionalLayout() {
           </div>
         )}
 
-        <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-28 outline-none sm:px-6 lg:px-8 lg:py-8">
+        <main id="main" ref={mainRef} tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-28 outline-none sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </main>
 
@@ -213,10 +227,10 @@ export function ProfessionalLayout() {
       </div>
 
       <Modal open={drawer} onClose={() => setDrawer(false)} title="Navigation" side>
-        <NavList onNavigate={() => setDrawer(false)} />
-        <Button variant="secondary" className="mt-4 w-full" onClick={() => { setDrawer(false); setGuided(true) }}>
+        <Button variant="secondary" className="mb-4 w-full" onClick={() => { setDrawer(false); setGuided(true) }}>
           <IconListChecks size={18} /> Guided demo
         </Button>
+        <NavList onNavigate={() => setDrawer(false)} />
       </Modal>
 
       <GuidedDemo />

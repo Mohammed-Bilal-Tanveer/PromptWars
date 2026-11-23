@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { CHARACTERS } from '../scene/kenney'
 import type { EquipmentType } from '@/types/api'
 import { useAppStore } from '@/stores/appStore'
@@ -15,10 +15,15 @@ import { ApprovalDesk } from '@/features/approvals'
 import { AnalyticsDashboard, NotificationCenter } from '@/features/analytics'
 import { AssistantPanel } from '@/features/ai-assistant'
 import { MapPanel } from './MapPanel'
+import { MENU_TRIGGER_ID } from './ids'
+import { TabList, TabPanel, useTabIds } from './Tabs'
 import { useExplorerStore, type PanelState, type Quality } from '../stores/explorerStore'
 import { DEPT_FALLBACK, buildingById, buildingForDept, doorOutside } from '../environments/layout'
 
 export const CANVAS_WRAP_ID = 'explorer-canvas-wrap'
+
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+const BOOKING_TABS = [['calendar', 'Calendar'], ['form', 'New request'], ['tracker', 'My requests'], ['scheduling', 'Scheduling studio']] as const
 
 const TITLES: Record<string, string> = {
   equipment: 'Equipment details', department: 'Department', lab: 'Laboratory', kiosk: 'Campus information kiosk',
@@ -29,10 +34,18 @@ const TITLES: Record<string, string> = {
 
 function Shell({ panel, onClose, onBack, children }: { panel: PanelState; onClose: () => void; onBack?: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    ref.current?.focus()
-    return () => { document.getElementById(CANVAS_WRAP_ID)?.focus() }
-  }, [])
+  useEffect(() => { ref.current?.focus() }, [])
+  /** Keep Tab/Shift+Tab inside the dialog (events from portalled nested dialogs are ignored). */
+  const trapTab = (e: KeyboardEvent<HTMLDivElement>) => {
+    const root = ref.current
+    if (e.key !== 'Tab' || !root || !root.contains(e.target as Node)) return
+    const items = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => !el.closest('[hidden],[inert]'))
+    if (!items.length) { e.preventDefault(); root.focus(); return }
+    const first = items[0], last = items[items.length - 1]
+    const active = document.activeElement
+    if (e.shiftKey && (active === first || active === root)) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus() }
+  }
   const title = TITLES[panel.kind]
   return (
     <div className="pointer-events-auto absolute inset-0 z-40 flex items-start justify-center overflow-hidden p-2 sm:p-6" role="presentation">
@@ -43,6 +56,7 @@ function Shell({ panel, onClose, onBack, children }: { panel: PanelState; onClos
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
+        onKeyDown={trapTab}
         className="relative z-10 mt-2 flex max-h-[85vh] w-full max-w-[920px] flex-col overflow-hidden rounded-2xl border border-line bg-surface text-fg shadow-pop outline-none"
       >
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5 sm:px-5">
@@ -124,26 +138,24 @@ function BookingHub({ equipment, initial }: { equipment: EquipmentType[]; initia
   const list = useEquipmentList({ page_size: 100 })
   const options = list.data?.items ?? equipment
   const eqId = eq || options[0]?.id || ''
-  const tabs: [NonNullable<PanelState['tab']>, string][] = [['calendar', 'Calendar'], ['form', 'New request'], ['tracker', 'My requests'], ['scheduling', 'Scheduling studio']]
+  const ids = useTabIds('booking-tabs')
   return (
     <div className="space-y-3">
-      <div role="tablist" aria-label="Booking sections" className="inline-flex max-w-full flex-wrap gap-1 rounded-lg bg-surface2 p-1">
-        {tabs.map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={cx('min-h-10 rounded-md px-3 text-sm font-medium transition-colors', tab === k ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg')}>{l}</button>
-        ))}
-      </div>
-      {tab === 'calendar' && <BookingCalendar embedded />}
-      {tab === 'tracker' && <RequestTracker embedded />}
-      {tab === 'scheduling' && <SchedulingStudio embedded />}
-      {tab === 'form' && (
-        <div className="space-y-3">
-          <label className="block text-sm font-medium" htmlFor="ex-eq">Equipment</label>
-          <Select id="ex-eq" value={eqId} onChange={(e) => setEq(e.target.value)}>
-            {options.map((o) => <option key={o.id} value={o.id}>{o.name} — {o.laboratory_name}</option>)}
-          </Select>
-          {eqId ? <BookingForm key={eqId} equipmentId={eqId} embedded onSubmitted={() => setTab('tracker')} /> : <p className="text-muted">Loading equipment…</p>}
-        </div>
-      )}
+      <TabList label="Booking sections" tabs={BOOKING_TABS} value={tab} onChange={setTab} idPrefix={ids} className="inline-flex max-w-full flex-wrap gap-1 rounded-lg bg-surface2 p-1" />
+      <TabPanel idPrefix={ids} tab={tab}>
+        {tab === 'calendar' && <BookingCalendar embedded />}
+        {tab === 'tracker' && <RequestTracker embedded />}
+        {tab === 'scheduling' && <SchedulingStudio embedded />}
+        {tab === 'form' && (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium" htmlFor="ex-eq">Equipment</label>
+            <Select id="ex-eq" value={eqId} onChange={(e) => setEq(e.target.value)}>
+              {options.map((o) => <option key={o.id} value={o.id}>{o.name} — {o.laboratory_name}</option>)}
+            </Select>
+            {eqId ? <BookingForm key={eqId} equipmentId={eqId} embedded onSubmitted={() => setTab('tracker')} /> : <p className="text-muted">Loading equipment…</p>}
+          </div>
+        )}
+      </TabPanel>
     </div>
   )
 }
@@ -156,7 +168,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
         <legend className="font-semibold">Graphics quality</legend>
         <div className="inline-flex gap-1 rounded-lg bg-surface2 p-1">
           {(['auto', 'low', 'high'] as Quality[]).map((q) => (
-            <button key={q} onClick={() => s.setQuality(q)} aria-pressed={s.quality === q} className={cx('min-h-10 rounded-md px-4 text-sm font-medium capitalize transition-colors', s.quality === q ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg')}>{q}</button>
+            <button key={q} onClick={() => s.setQuality(q)} aria-pressed={s.quality === q} className={cx('min-h-10 rounded-md px-4 text-sm font-medium capitalize max-sm:min-h-11 transition-colors', s.quality === q ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg')}>{q}</button>
           ))}
         </div>
         <p className="text-xs text-muted">Affects pixel ratio, shadows and tree count.</p>
@@ -196,6 +208,23 @@ export function PanelHost({ equipment }: { equipment: EquipmentType[] }) {
   const close = useExplorerStore((s) => s.closePanel)
   const back = useExplorerStore((s) => s.back)
   const setWp = useExplorerStore((s) => s.setWaypoint)
+  const isOpen = !!panel
+
+  // Remember what had focus when the first panel opened (render phase: children's autoFocus runs before any effect).
+  const opener = useRef<{ el: Element | null } | null>(null)
+  if (isOpen && !opener.current) opener.current = { el: document.activeElement }
+  useEffect(() => {
+    if (isOpen) return
+    const saved = opener.current
+    if (!saved) return
+    opener.current = null
+    const el = saved.el
+    const target = el instanceof HTMLElement && el.isConnected && el !== document.body
+      ? el
+      : (document.getElementById(MENU_TRIGGER_ID) ?? document.getElementById(CANVAS_WRAP_ID))
+    target?.focus()
+  }, [isOpen])
+
   if (!panel) return null
 
   const viewMatch = (id: string) => {

@@ -94,7 +94,7 @@ export function ConnectionManager() {
       {down && !dismissed && (
         <section
           aria-label="Backend connection status"
-          className="fixed inset-x-3 bottom-24 z-[75] mx-auto max-w-lg rounded-2xl border border-line bg-surface p-4 text-fg shadow-pop lg:bottom-6"
+          className="fixed inset-x-3 bottom-24 z-[75] mx-auto max-w-lg rounded-2xl border border-line bg-surface p-4 text-fg shadow-pop lg:bottom-6 [body[data-lablink-3d]_&]:bottom-auto [body[data-lablink-3d]_&]:top-3"
         >
           <div className="flex items-start gap-3">
             <span className="mt-0.5 shrink-0 text-brand" aria-hidden="true">
@@ -122,7 +122,7 @@ export function ConnectionManager() {
         <button
           type="button"
           onClick={() => useConnectionStore.setState({ overlayDismissed: false })}
-          className="fixed bottom-24 right-3 z-[75] rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted shadow-pop lg:bottom-6"
+          className="fixed bottom-24 right-3 z-[75] rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted shadow-pop max-sm:min-h-11 lg:bottom-6 [body[data-lablink-3d]_&]:bottom-2 [body[data-lablink-3d]_&]:left-1/2 [body[data-lablink-3d]_&]:right-auto [body[data-lablink-3d]_&]:-translate-x-1/2"
         >
           {unavailable ? 'Backend unavailable' : 'Reconnecting…'}
         </button>

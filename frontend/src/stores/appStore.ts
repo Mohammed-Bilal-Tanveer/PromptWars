@@ -57,7 +57,7 @@ export const useAppStore = create<AppState>((set) => ({
   pushToast: (t) => {
     const id = toastId++
     set((s) => ({ toasts: [...s.toasts, { ...t, id }].slice(-4) }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })), t.kind === 'error' ? 7000 : 4500)
+    // Auto-dismiss is owned by <Toasts /> so it can pause while a toast is hovered or focused.
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
 

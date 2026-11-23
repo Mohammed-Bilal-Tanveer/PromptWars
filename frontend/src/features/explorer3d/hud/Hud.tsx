@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { EquipmentType } from '@/types/api'
 import { ROUTES } from '@/lib/routes'
 import { BUILDINGS, CAMPUS_BOUND, buildingForDept } from '../environments/layout'
+import { MENU_TRIGGER_ID } from './ids'
 import { startWalk } from '../interactions/navigation'
 import { input, playerState } from '../character/playerState'
 import { interactNearest, useExplorerStore, type PanelState } from '../stores/explorerStore'
@@ -17,7 +18,7 @@ const btn = `inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-s
 
 export function ExitButton() {
   return (
-    <Link to={ROUTES.overview} className={btn} aria-label="Exit 3D and skip to dashboard (Professional Mode)">
+    <Link to={ROUTES.overview} className={btn}>
       <IconArrowLeft size={18} className="text-muted" /> Exit 3D<span className="max-sm:hidden"> · Professional Mode</span>
     </Link>
   )
@@ -92,16 +93,18 @@ export function Objective() {
   const find = useExplorerStore((s) => s.find)
   if (find) return null
   return (
-    <div className={cx('max-w-sm rounded-xl px-3 py-2 text-xs sm:text-sm', surface)} aria-live="polite">
-      <span className="font-semibold">Objective: </span>
-      {wp ? (
+    <div className={cx('max-w-sm rounded-xl px-3 py-2 text-xs sm:text-sm', surface)}>
+      {/* Only the instruction is announced; the changing distance stays out of the live region. */}
+      <span aria-live="polite" data-testid="objective-live">
+        <span className="font-semibold">Objective: </span>
+        <span className="text-muted">{wp ? `Head to ${wp.label}` : 'Visit the kiosk in the plaza, or try the Project Lab terminal.'}</span>
+      </span>
+      {wp && (
         <>
-          <span className="text-muted">Head to {wp.label} (~{Math.round(d)} m)</span>{' '}
-          <button className="link min-h-6" onClick={() => startWalk(wp)} aria-label="Walk to waypoint">walk there</button>{' '}
-          <button className="link min-h-6" onClick={() => setWp(null)} aria-label="Clear waypoint">clear</button>
+          {' '}<span className="text-muted" aria-hidden data-testid="objective-distance">(~{Math.round(d)} m)</span>{' '}
+          <button className="link max-sm:inline-flex max-sm:min-h-11 max-sm:items-center" onClick={() => startWalk(wp)} aria-label={`Walk there: ${wp.label}`}>walk there</button>{' '}
+          <button className="link max-sm:inline-flex max-sm:min-h-11 max-sm:items-center" onClick={() => setWp(null)} aria-label="Clear waypoint">clear</button>
         </>
-      ) : (
-        <span className="text-muted">Visit the kiosk in the plaza, or try the Project Lab terminal.</span>
       )}
     </div>
   )
@@ -145,8 +148,16 @@ export function MenuButton() {
   const openPanel = useExplorerStore((s) => s.openPanel)
   const trigger = useRef<HTMLButtonElement>(null)
   const first = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
   useEffect(() => {
     if (open) first.current?.focus()
+    else if (wasOpen.current) {
+      // Menu closed by choosing an item, tapping outside, etc.: never leave focus on a removed node.
+      // (When an item opened a panel, the panel takes focus and gives it back to this trigger on close.)
+      const a = document.activeElement
+      if (!useExplorerStore.getState().panel && (!a || a === document.body || !a.isConnected)) trigger.current?.focus()
+    }
+    wasOpen.current = open
   }, [open])
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && open) {
@@ -160,6 +171,7 @@ export function MenuButton() {
     <div className="relative flex flex-col items-end" onKeyDown={onKey}>
       <button
         ref={trigger}
+        id={MENU_TRIGGER_ID}
         type="button"
         className={cx(btn, 'min-w-11 justify-center')}
         aria-label={open ? 'Close menu' : 'Open menu'}

@@ -75,6 +75,12 @@ function Explorer({ onContextLost }: { onContextLost: () => void }) {
   const drag = useRef<{ id: number; x: number } | null>(null)
 
   useEffect(() => {
+    // Lets the global connection banner move out of the way of the touch controls on this route.
+    document.body.setAttribute('data-lablink-3d', '')
+    return () => document.body.removeAttribute('data-lablink-3d')
+  }, [])
+
+  useEffect(() => {
     resetPlayer()
     clearInteractables()
     wrap.current?.focus()
@@ -138,7 +144,8 @@ function Explorer({ onContextLost }: { onContextLost: () => void }) {
   useEffect(() => { if (panel) { input.keys.clear(); input.joy.x = 0; input.joy.y = 0 } }, [panel])
 
   return (
-    <div className="relative h-[calc(100vh-0px)] min-h-[480px] w-full overflow-hidden bg-[#dde7ee]">
+    <main className="relative h-[calc(100vh-0px)] min-h-[480px] w-full overflow-hidden bg-[#dde7ee]">
+      <h1 className="sr-only">LabLink 3D Campus</h1>
       <div
         id={CANVAS_WRAP_ID}
         ref={wrap}
@@ -181,7 +188,7 @@ function Explorer({ onContextLost }: { onContextLost: () => void }) {
         <TouchControls />
         {eqQuery.isError && (
           <div role="alert" className="pointer-events-auto absolute left-1/2 top-3 -translate-x-1/2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 shadow-raised">
-            Could not load live equipment data. <button className="link min-h-6" onClick={() => refetch()}>Retry</button>
+            Could not load live equipment data. <button className="link max-sm:inline-flex max-sm:min-h-11 max-sm:items-center" onClick={() => refetch()}>Retry</button>
           </div>
         )}
       </div>
@@ -194,7 +201,7 @@ function Explorer({ onContextLost }: { onContextLost: () => void }) {
       />
       <div aria-hidden className={`pointer-events-none absolute inset-0 z-30 bg-black transition-opacity duration-200 ${fade ? 'opacity-100' : 'opacity-0'}`} />
       <PanelHost equipment={equipment} />
-    </div>
+    </main>
   )
 }
 

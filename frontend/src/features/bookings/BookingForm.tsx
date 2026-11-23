@@ -10,6 +10,8 @@ import { AlternativeList, apiDetails, fromMin, toMin } from './parts'
 
 type Errs = Partial<Record<'title' | 'name' | 'dept' | 'date' | 'start' | 'end' | 'purpose' | 'hours', string>>
 
+const FIELD_ORDER = ['title', 'name', 'dept', 'date', 'start', 'end', 'purpose', 'hours'] as const
+
 export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { equipmentId: string; onSubmitted?: (requestId: string) => void; onCancel?: () => void; embedded?: boolean }) {
   const draft = useAppStore((s) => s.bookingDraft)
   const requester = useAppStore((s) => s.requester)
@@ -85,7 +87,13 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
     if (!joinWaitlist) setConflict(null)
     const v = validate()
     setErrs(v)
-    if (Object.keys(v).length) { setQueueOpen(false); return }
+    const firstBad = FIELD_ORDER.find((k) => v[k])
+    if (firstBad) {
+      setQueueOpen(false)
+      // Move focus to the first invalid control so keyboard / screen-reader users land on the problem.
+      document.getElementById(`bf-${firstBad}`)?.focus()
+      return
+    }
     setRequester({ name: name.trim(), departmentId: dept })
     create.mutate(
       {

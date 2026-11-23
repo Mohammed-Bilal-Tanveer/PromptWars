@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { cloneElement, isValidElement, useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { ApiError } from '@/services/apiClient'
 import { humanize } from '@/lib/format'
 import {
@@ -16,7 +16,7 @@ const BTN_VARIANT: Record<BtnVariant, string> = {
   // "ai" used to be a purple gradient; it is now the same calm primary button.
   ai: 'bg-brand text-white shadow-card hover:bg-brand-hover active:bg-brand-active',
   success: 'bg-emerald-700 text-white shadow-card hover:bg-emerald-800 active:bg-emerald-900',
-  secondary: 'bg-surface text-fg border border-line-strong shadow-card hover:bg-surface2 active:bg-[#e8ebf0]',
+  secondary: 'bg-surface text-fg border border-control-border shadow-card hover:bg-surface2 active:bg-[#e8ebf0]',
   ghost: 'bg-transparent text-muted hover:bg-surface2 hover:text-fg active:bg-[#e8ebf0]',
   danger: 'bg-red-700 text-white shadow-card hover:bg-red-800 active:bg-red-900',
 }
@@ -266,16 +266,29 @@ export function ProgressBar({ value, label, gradient = 'avail' }: { value: numbe
 
 /* ---------- Forms ---------- */
 const inputBase =
-  'w-full rounded-xl border border-line-strong bg-surface px-3 py-2 text-sm text-fg shadow-card placeholder:text-subtle min-h-11 lg:min-h-10 ' +
-  'transition-colors hover:border-[#b5bcc7] focus:border-brand disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-subtle aria-[invalid=true]:border-red-600'
+  'w-full rounded-xl border border-control-border bg-surface px-3 py-2 text-sm text-fg shadow-card placeholder:text-subtle min-h-11 lg:min-h-10 ' +
+  'transition-colors hover:border-subtle focus:border-brand disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-subtle aria-[invalid=true]:border-red-600'
 export function Field({ label, htmlFor, error, hint, children, className }: { label: string; htmlFor: string; error?: string | null; hint?: string; children: ReactNode; className?: string }) {
+  const errorId = `${htmlFor}-error`
+  const hintId = `${htmlFor}-hint`
+  const showHint = !!hint && !error
+  // Wire the message to the control: aria-invalid + aria-describedby (merged with any the caller already set).
+  let control = children
+  if (isValidElement<Record<string, unknown>>(children)) {
+    const p = children.props
+    const described = [p['aria-describedby'] as string | undefined, error ? errorId : null, showHint ? hintId : null].filter(Boolean).join(' ')
+    control = cloneElement(children, {
+      ...(error ? { 'aria-invalid': true } : {}),
+      ...(described ? { 'aria-describedby': described } : {}),
+    })
+  }
   return (
     <div className={cx('flex flex-col gap-1.5', className)}>
       <label htmlFor={htmlFor} className="text-sm font-medium text-fg">{label}</label>
-      {children}
-      {hint && !error && <p className="text-xs text-subtle">{hint}</p>}
+      {control}
+      {showHint && <p id={hintId} className="text-xs text-subtle">{hint}</p>}
       {error && (
-        <p role="alert" className="flex items-start gap-1.5 text-xs font-medium text-red-700">
+        <p id={errorId} role="alert" className="flex items-start gap-1.5 text-xs font-medium text-red-700">
           <IconAlert size={14} className="mt-px shrink-0" /> {error}
         </p>
       )}
@@ -286,23 +299,47 @@ export const Input = ({ className, ...p }: InputHTMLAttributes<HTMLInputElement>
 export const Select = ({ className, ...p }: SelectHTMLAttributes<HTMLSelectElement>) => <select {...p} className={cx(inputBase, 'pr-8', className)} />
 export const Textarea = ({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...p} className={cx(inputBase, 'min-h-24 leading-relaxed', className)} />
 
-/* ---------- Modal / Drawer (focus managed, Esc closes) ---------- */
+/* ---------- Modal / Drawer (focus managed, focus trapped, Esc closes the topmost only) ---------- */
+/** Open modals, oldest first. Only the last entry reacts to Esc / Tab so nested dialogs close one at a time. */
+const modalStack: symbol[] = []
+let scrollLocks = 0
+let savedOverflow = ''
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+
 export function Modal({ open, onClose, title, children, wide, side }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; side?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
-  const prev = useRef<Element | null>(null)
+  // Callers pass inline handlers; keep the latest one in a ref so re-renders never re-run the effect below.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
   useEffect(() => {
     if (!open) return
-    prev.current = document.activeElement
+    const id = Symbol('modal')
+    const prev = document.activeElement as HTMLElement | null
+    modalStack.push(id)
+    if (scrollLocks++ === 0) { savedOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden' }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose() }
+      if (modalStack[modalStack.length - 1] !== id) return
+      if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current() }
+      else if (e.key === 'Tab') {
+        const root = ref.current
+        if (!root) return
+        const items = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => !el.closest('[hidden],[inert]'))
+        if (!items.length) { e.preventDefault(); root.focus(); return }
+        const first = items[0], last = items[items.length - 1], active = document.activeElement
+        if (e.shiftKey && (active === first || active === root || !root.contains(active))) { e.preventDefault(); last.focus() }
+        else if (!e.shiftKey && (active === last || !root.contains(active))) { e.preventDefault(); first.focus() }
+      }
     }
     document.addEventListener('keydown', onKey)
     ref.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKey)
-      ;(prev.current as HTMLElement | null)?.focus?.()
+      const i = modalStack.indexOf(id)
+      if (i >= 0) modalStack.splice(i, 1)
+      if (--scrollLocks === 0) document.body.style.overflow = savedOverflow
+      prev?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex" role="presentation">

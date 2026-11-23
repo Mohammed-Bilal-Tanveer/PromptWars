@@ -98,6 +98,11 @@ export function BookingCalendar({ embedded }: { embedded?: boolean }) {
                         />
                       ))}
                     </div>
+                    {u.busy.length > 0 && (
+                      <ul className="sr-only" aria-label={`${u.unit_name} busy times`}>
+                        {u.busy.map((b, i) => <li key={i}>{b.label} {formatTime(b.start_at)} to {formatTime(b.end_at)}{b.kind === 'maintenance' ? ' (maintenance)' : ''}</li>)}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>

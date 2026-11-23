@@ -4,17 +4,17 @@ import { playerState } from '../character/playerState'
 import { DESTINATIONS, teleportToDestination, walkToDestination } from '../interactions/navigation'
 import { Button, cx, IconMapPin } from '@/components/ui'
 import { NetworkView } from './NetworkView'
+import { TabList, TabPanel, useTabIds } from './Tabs'
+
+const MAP_TABS = [['map', 'Map & Teleport'], ['network', 'Resource network']] as const
 
 export function MapPanel() {
   const [tab, setTab] = useState<'map' | 'network'>('map')
+  const ids = useTabIds('map-tabs')
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="Map views" className="inline-flex gap-1 rounded-lg bg-surface2 p-1">
-        {([['map', 'Map & Teleport'], ['network', 'Resource network']] as const).map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={cx('min-h-10 rounded-md px-3 text-sm font-medium transition-colors', tab === k ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg')}>{l}</button>
-        ))}
-      </div>
-      {tab === 'map' ? <CampusMap /> : <NetworkView />}
+      <TabList label="Map views" tabs={MAP_TABS} value={tab} onChange={setTab} idPrefix={ids} className="inline-flex gap-1 rounded-lg bg-surface2 p-1" />
+      <TabPanel idPrefix={ids} tab={tab}>{tab === 'map' ? <CampusMap /> : <NetworkView />}</TabPanel>
     </div>
   )
 }
@@ -82,7 +82,7 @@ function CampusMap() {
               type="button"
               aria-pressed={sel === d.id}
               onClick={() => setSel(d.id)}
-              className={cx('flex min-h-11 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium hover:bg-surface2', sel === d.id ? 'border-brand bg-brand-soft text-fg' : 'border-line text-fg')}
+              className={cx('flex min-h-11 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium hover:bg-surface2', sel === d.id ? 'border-brand bg-brand-subtle text-fg' : 'border-line text-fg')}
             >
               <span className="text-muted" aria-hidden>{d.kind === 'building' ? (bld(d.id)?.short ?? '') : '•'}</span> {d.label}
             </button>

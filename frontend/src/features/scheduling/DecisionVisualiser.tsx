@@ -130,7 +130,7 @@ export function DecisionVisualiser({ data, onUse, busy }: { data: DecisionRespon
             <div role="group" aria-label="Timeline state" className="inline-flex rounded-lg border border-line p-0.5 text-sm">
               {(['before', 'after'] as Mode[]).map((m) => (
                 <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}
-                  className={cx('rounded-md px-3 py-1.5 font-medium', mode === m ? 'bg-brand-600 text-white' : 'text-muted hover:bg-surface2')}>
+                  className={cx('rounded-md px-3 py-1.5 font-medium max-sm:min-h-11', mode === m ? 'bg-brand text-white' : 'text-muted hover:bg-surface2')}>
                   {m === 'before' ? 'Before optimisation' : 'After optimisation'}
                 </button>
               ))}
@@ -139,7 +139,7 @@ export function DecisionVisualiser({ data, onUse, busy }: { data: DecisionRespon
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Day">
             {days.map((d) => (
               <button key={d} type="button" aria-pressed={d === activeDay} onClick={() => setDay(d)}
-                className={cx('rounded-lg border px-2.5 py-1 text-xs', d === activeDay ? 'border-brand-600 bg-brand-50 font-semibold text-brand-700' : 'border-line text-muted')}>
+                className={cx('rounded-lg border px-2.5 py-1 text-xs max-sm:min-h-11', d === activeDay ? 'border-brand bg-brand-subtle font-semibold text-brand-fg' : 'border-control-border text-muted hover:bg-surface2')}>
                 {formatDate(`${d}T12:00:00Z`)}
               </button>
             ))}
@@ -204,7 +204,7 @@ export function DecisionVisualiser({ data, onUse, busy }: { data: DecisionRespon
             const on = pick?.kind === 'request' && pick.id === r.request_id
             return (
               <button key={`${r.request_id ?? 'adhoc'}-${i}`} type="button" aria-pressed={on} onClick={() => setPick({ kind: 'request', id: r.request_id })}
-                className={cx('rounded-lg border px-2.5 py-1 text-xs', on ? 'border-brand-600 bg-brand-50 font-semibold text-brand-700' : 'border-line text-muted')}>
+                className={cx('rounded-lg border px-2.5 py-1 text-xs max-sm:min-h-11', on ? 'border-brand bg-brand-subtle font-semibold text-brand-fg' : 'border-control-border text-muted hover:bg-surface2')}>
                 {r.project_title || r.request_id || 'Ad-hoc search'} · {r.recommended ? 'assigned' : 'unscheduled'}
               </button>
             )
@@ -219,7 +219,7 @@ export function DecisionVisualiser({ data, onUse, busy }: { data: DecisionRespon
 function Legend({ mode }: { mode: Mode }) {
   const chips: [string, string][] = [['bg-slate-400', 'Confirmed (locked)'], ['bg-amber-400', 'Maintenance (blocked)']]
   if (mode === 'before') chips.push(['bg-sky-300', 'Requested window'], ['bg-red-400', 'Conflicting request'])
-  else chips.push(['bg-brand-600', 'Recommended (not booked)'])
+  else chips.push(['bg-brand', 'Recommended (not booked)'])
   return <ul className="flex flex-wrap gap-3 text-xs text-muted">{chips.map(([c, l]) => <li key={l} className="flex items-center gap-1.5"><span className={cx('inline-block h-3 w-3 rounded-sm', c)} />{l}</li>)}</ul>
 }
 
@@ -232,11 +232,11 @@ function Lane({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-const BAR_TONE = { booking: 'bg-slate-400', maintenance: 'bg-amber-400', recommended: 'bg-brand-600 text-white', request: 'bg-sky-300', clash: 'bg-red-400' } as const
+const BAR_TONE = { booking: 'bg-slate-400', maintenance: 'bg-amber-400', recommended: 'bg-brand text-white', request: 'bg-sky-300', clash: 'bg-red-400' } as const
 function Bar({ c, tone, title, label, onClick }: { c: { left: number; width: number }; tone: keyof typeof BAR_TONE; title: string; label?: string; onClick: () => void }) {
   return (
     <button type="button" title={title} aria-label={title} onClick={onClick}
-      className={cx('absolute top-1 bottom-1 overflow-hidden rounded px-1 text-left text-[11px] leading-7 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600', BAR_TONE[tone])}
+      className={cx('absolute top-1 bottom-1 overflow-hidden rounded px-1 text-left text-[11px] leading-7 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand', BAR_TONE[tone])}
       style={{ left: `${c.left}%`, width: `${c.width}%` }}>{label}</button>
   )
 }

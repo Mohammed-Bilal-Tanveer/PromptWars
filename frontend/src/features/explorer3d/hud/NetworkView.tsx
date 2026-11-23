@@ -33,7 +33,7 @@ function DeptDetail({ id }: { id: string }) {
           <ul className="mt-1 space-y-1">
             {items.map((i) => (
               <li key={i.equipmentId + i.requirement}>
-                <button className="link min-h-8 text-left" onClick={() => openPanel({ kind: 'equipment', recordId: i.equipmentId })}>{i.name}</button>
+                <button className="link inline-flex min-h-8 items-center text-left max-sm:min-h-11" onClick={() => openPanel({ kind: 'equipment', recordId: i.equipmentId })}>{i.name}</button>
                 <span className="text-xs text-muted"> for {i.requirement}</span>
               </li>
             ))}
@@ -80,7 +80,7 @@ export function NetworkView() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <button type="button" aria-pressed={showProject} onClick={() => setShowProject((v) => !v)} className={cx('min-h-10 rounded-lg border px-3 font-medium', showProject ? 'border-brand bg-brand-soft' : 'border-line-strong bg-surface')}>
+        <button type="button" aria-pressed={showProject} onClick={() => setShowProject((v) => !v)} className={cx('min-h-10 rounded-lg border px-3 font-medium max-sm:min-h-11', showProject ? 'border-brand bg-brand-subtle' : 'border-line-strong bg-surface')}>
           Project: {title ?? 'current analysis'}
         </button>
         <span className="text-xs text-muted">Blue: departments with matching equipment. Solid line: used together by your project. Dashed: shared capabilities.</span>
@@ -100,7 +100,8 @@ export function NetworkView() {
           const hi = showProject && matchDepts.has(d.id)
           const on = sel === d.id
           return (
-            <g key={d.id} transform={`translate(${p.x} ${p.y})`} role="button" tabIndex={0} aria-pressed={on} aria-label={`${d.name}${hi ? ', has matching equipment' : ''}`} className="cursor-pointer outline-none" onClick={() => setSel(d.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(d.id) } }}>
+            <g key={d.id} transform={`translate(${p.x} ${p.y})`} role="button" tabIndex={0} aria-pressed={on} aria-label={`${d.name}${hi ? ', has matching equipment' : ''}`} className="group cursor-pointer outline-none" onClick={() => setSel(d.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(d.id) } }}>
+              <circle r={25} fill="none" strokeWidth={2.5} className="stroke-transparent group-focus-visible:stroke-brand" />
               <circle r={on ? 20 : 17} fill={hi ? '#dbeafe' : '#ffffff'} stroke={on ? '#1d4ed8' : hi ? '#2563eb' : '#667085'} strokeWidth={on ? 3 : 1.5} />
               <text y={4} fontSize={9} fontWeight={700} textAnchor="middle" fill="#101828" pointerEvents="none">{d.building_code}</text>
               <text y={32} fontSize={8} textAnchor="middle" fill="#475467" pointerEvents="none">{d.name.length > 18 ? `${d.name.slice(0, 17)}…` : d.name}</text>

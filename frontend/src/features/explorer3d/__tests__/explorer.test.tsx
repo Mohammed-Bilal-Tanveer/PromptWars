@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen } from '@testing-library/react'
 import { renderWithProviders } from '@/test/utils'
-import { useExplorerStore } from '../stores/explorerStore'
+import { useExplorerStore, watchReducedMotion } from '../stores/explorerStore'
+import { Objective } from '../hud/Hud'
 import { input, playerState } from '../character/playerState'
 import { DESTINATIONS, planPath, teleportToDestination } from '../interactions/navigation'
 
@@ -28,7 +29,7 @@ describe('Explorer3DPage', () => {
     it('renders HUD with exit button and quick action opens a panel', () => {
       renderWithProviders(<Explorer3DPage />)
       expect(screen.getByTestId('scene')).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: /exit 3d and skip to dashboard/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /exit 3d/i })).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
       fireEvent.click(screen.getByRole('button', { name: 'Search' }))
       expect(screen.getByRole('dialog', { name: /search equipment/i })).toBeInTheDocument()
@@ -100,7 +101,57 @@ describe('Explorer3DPage', () => {
 
     it('shows a Professional Mode label in the header', () => {
       renderWithProviders(<Explorer3DPage />)
-      expect(screen.getByRole('link', { name: /exit 3d and skip to dashboard/i })).toHaveTextContent(/professional mode/i)
+      expect(screen.getByRole('link', { name: /exit 3d/i })).toHaveTextContent(/professional mode/i)
+    })
+
+    it('has an h1 and a main landmark, and the Exit link name contains its visible text', () => {
+      renderWithProviders(<Explorer3DPage />)
+      expect(screen.getByRole('heading', { level: 1, name: 'LabLink 3D Campus' })).toBeInTheDocument()
+      expect(screen.getByRole('main')).toBeInTheDocument()
+      const exit = screen.getByRole('link', { name: /exit 3d/i })
+      expect(exit.getAttribute('aria-label')).toBeNull()
+    })
+
+    it('returns focus to the Menu trigger when a panel opened from the menu is closed', () => {
+      renderWithProviders(<Explorer3DPage />)
+      const trigger = screen.getByRole('button', { name: 'Open menu' })
+      fireEvent.click(trigger)
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toHaveFocus()
+      fireEvent.click(screen.getByRole('button', { name: /close panel/i }))
+      expect(document.getElementById('explorer-menu-trigger')).toHaveFocus()
+    })
+
+    it('returns focus to a focused trigger (minimap) after closing, and traps Tab inside the dialog', () => {
+      renderWithProviders(<Explorer3DPage />)
+      const mini = screen.getByRole('button', { name: /open campus map/i })
+      mini.focus()
+      fireEvent.click(mini)
+      const dialog = screen.getByRole('dialog')
+      const items = Array.from(dialog.querySelectorAll<HTMLElement>('button, [tabindex="0"]'))
+      const last = items[items.length - 1]
+      last.focus()
+      fireEvent.keyDown(last, { key: 'Tab' })
+      expect(document.activeElement).toBe(items[0])
+      fireEvent.keyDown(items[0], { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(last)
+      fireEvent.click(screen.getByRole('button', { name: /close panel/i }))
+      expect(mini).toHaveFocus()
+    })
+
+    it('tablists support arrow keys and link to a tabpanel', () => {
+      renderWithProviders(<Explorer3DPage />)
+      act(() => useExplorerStore.getState().openPanel({ kind: 'map' }))
+      const tab = screen.getByRole('tab', { name: 'Map & Teleport' })
+      expect(tab).toHaveAttribute('tabindex', '0')
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', tab.id)
+      expect(tab.getAttribute('aria-controls')).toBe(screen.getByRole('tabpanel').id)
+      tab.focus()
+      fireEvent.keyDown(tab, { key: 'ArrowRight' })
+      const next = screen.getByRole('tab', { name: 'Resource network' })
+      expect(next).toHaveAttribute('aria-selected', 'true')
+      expect(next).toHaveFocus()
     })
 
     it('sprint toggle sets run input on touch layouts', () => {
@@ -130,6 +181,35 @@ describe('Explorer3DPage', () => {
       const path = planPath({ x: 0, z: 9 }, { x: -28, z: -22 })
       expect(path.length).toBeGreaterThan(2)
       expect(path[path.length - 1]).toEqual({ x: -28, z: -22 })
+    })
+  })
+
+  describe('objective live region', () => {
+    it('announces only the instruction, not the changing distance', () => {
+      useExplorerStore.setState({ waypoint: { x: 5, z: 5, label: 'CS Building' }, find: null })
+      renderWithProviders(<Objective />)
+      const live = screen.getByTestId('objective-live')
+      expect(live).toHaveAttribute('aria-live', 'polite')
+      expect(live.textContent).toContain('Head to CS Building')
+      expect(live.textContent).not.toMatch(/m\)/)
+      expect(screen.getByTestId('objective-distance')).toHaveAttribute('aria-hidden', 'true')
+      expect(screen.getByRole('button', { name: /walk there/i })).toBeInTheDocument()
+      useExplorerStore.setState({ waypoint: null })
+    })
+  })
+
+  describe('reduced motion', () => {
+    it('follows OS prefers-reduced-motion changes', () => {
+      let cb: ((e: { matches: boolean }) => void) | undefined
+      const mq = { matches: false, addEventListener: (_: string, f: typeof cb) => { cb = f }, removeEventListener: () => { cb = undefined } }
+      const off = watchReducedMotion(mq as any)
+      useExplorerStore.setState({ reduceMotion: false })
+      cb!({ matches: true })
+      expect(useExplorerStore.getState().reduceMotion).toBe(true)
+      cb!({ matches: false })
+      expect(useExplorerStore.getState().reduceMotion).toBe(false)
+      off()
+      expect(cb).toBeUndefined()
     })
   })
 })
