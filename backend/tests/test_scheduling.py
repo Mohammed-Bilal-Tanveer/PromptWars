@@ -187,3 +187,18 @@ def test_maintenance_overlap_detected(client):
     assert r.status_code == 200, r.text
     conf = client.get("/api/v1/scheduling/conflicts").json()["conflicts"]
     assert any(c["type"] == "maintenance_overlap" and b["id"] in c["booking_ids"] for c in conf)
+
+
+def test_explanation_uses_campus_time_not_utc():
+    # 04:30 UTC (Tuesday) is 10:00 in Asia/Kolkata (UTC+5:30); the line must read in campus time.
+    from app.utils_time import campus_tz
+
+    tz = campus_tz()
+    wins = [(T0 + timedelta(hours=3), T0 + timedelta(hours=11))]
+    start = T0 + timedelta(hours=4, minutes=30)
+    req = SolverRequest("A", "eq", "Type", 60, start, 0.5, earliest=T0, label="A")
+    out = solve([req], [_unit(windows=wins)], [], T0, H_END, time_limit=3)
+    text = " ".join(out.explanations["A"])
+    expected = start.astimezone(tz).strftime("%a %d %b %H:%M %Z")
+    assert expected in text
+    assert "UTC" not in text

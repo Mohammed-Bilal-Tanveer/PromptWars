@@ -24,6 +24,8 @@ from datetime import datetime, timedelta
 
 from ortools.sat.python import cp_model
 
+from app.utils_time import campus_tz
+
 MAX_TIME_LIMIT = 5.0
 PRIORITY_SCALE = 10000
 SHIFT_COST_PER_SLOT = 20
@@ -273,7 +275,8 @@ def solve(
 
 # ------------------------------------------------------------------ explanations
 def _fmt(dt: datetime) -> str:
-    return dt.strftime("%a %d %b %H:%M UTC")
+    """Human-readable campus time (storage stays UTC), e.g. 'Tue 24 Nov 11:30 IST'."""
+    return dt.astimezone(campus_tz()).strftime("%a %d %b %H:%M %Z")
 
 
 def _explain(out, ordered, units, by_type, req_cands, chosen, unit_slots, busy, t0, grid):
