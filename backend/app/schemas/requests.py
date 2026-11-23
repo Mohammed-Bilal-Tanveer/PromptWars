@@ -17,6 +17,7 @@ class BookingRequestCreate(BaseModel):
     estimated_hours: float | None = Field(default=None, ge=0)
     purpose: str = Field(default="", max_length=4000)
     deadline: datetime | None = None
+    join_waitlist: bool = False
 
 
 class ApproveBody(BaseModel):

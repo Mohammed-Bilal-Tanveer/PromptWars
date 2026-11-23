@@ -1,4 +1,5 @@
 import type { ApiErrorBody } from '@/types/api'
+import { isGatewayStatus, useConnectionStore } from '@/features/connection/connectionStore'
 
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000/api/v1'
@@ -39,9 +40,14 @@ async function request<T>(method: string, path: string, opts: { params?: Params;
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     })
   } catch {
+    // Transport failure: tell the global connection monitor. Writes are never replayed.
+    useConnectionStore.getState().reportFailure('network', { mutation: method !== 'GET' })
     throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the LabLink API. It may be starting up — please retry in a moment.')
   }
   if (!res.ok) {
+    if (isGatewayStatus(res.status)) {
+      useConnectionStore.getState().reportFailure('gateway', { mutation: method !== 'GET' })
+    }
     let body: Partial<ApiErrorBody> = {}
     try {
       body = await res.json()

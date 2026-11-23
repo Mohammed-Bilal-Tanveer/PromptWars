@@ -9,10 +9,10 @@ import { formatRange, humanize, localISO, REQUEST_STATUS_LABEL } from '@/lib/for
 import { AlternativeList, FactorBars, Section, Timeline, apiDetails } from '@/features/bookings/parts'
 import type { Alternative, BookingRequest } from '@/types/api'
 
-const STATUSES = ['pending_review', 'alternative_proposed', 'confirmed', 'rejected', 'cancelled']
+const STATUSES = ['pending_review', 'waitlisted', 'alternative_proposed', 'confirmed', 'rejected', 'cancelled']
 
 export function ApprovalDesk({ embedded }: { embedded?: boolean }) {
-  const [statuses, setStatuses] = useState<string[]>(['pending_review', 'alternative_proposed'])
+  const [statuses, setStatuses] = useState<string[]>(['pending_review', 'waitlisted', 'alternative_proposed'])
   const [dept, setDept] = useState('')
   const [eq, setEq] = useState('')
   const [date, setDate] = useState('')
@@ -148,7 +148,7 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
   return (
     <QueryBoundary query={q}>
       {(r: BookingRequest) => {
-        const actionable = r.status === 'pending_review' || r.status === 'alternative_proposed'
+        const actionable = r.status === 'pending_review' || r.status === 'waitlisted' || r.status === 'alternative_proposed'
         return (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-2">

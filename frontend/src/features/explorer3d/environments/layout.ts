@@ -21,12 +21,12 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: BuildingDef[] = [
-  { id: 'CS-B', label: 'CS Building', short: 'CS-B', x: -28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#6B84A8', roofColor: '#3F5373', roof: 'flat', departmentIds: ['dept-cs'] },
-  { id: 'EC-B', label: 'ECE Building', short: 'EC-B', x: 28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#C9A66B', roofColor: '#8A6A38', roof: 'pyramid', departmentIds: ['dept-ece'] },
-  { id: 'ME-B', label: 'Mech & Civil Building', short: 'ME-B', x: -28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#C07A5F', roofColor: '#7D4A38', roof: 'slope', departmentIds: ['dept-mech', 'dept-civil'] },
-  { id: 'BT-B', label: 'Biotech Building', short: 'BT-B', x: 28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#7FA58B', roofColor: '#4A6F58', roof: 'dome', departmentIds: ['dept-bio'] },
-  { id: 'OPS', label: 'Operations & Approval Centre', short: 'OPS', x: 0, z: -40, w: 16, d: 8, h: 4.8, facing: 1, color: '#A79F94', roofColor: '#6B655C', roof: 'flat', departmentIds: [], special: 'operations' },
-  { id: 'ANA', label: 'Analytics Control Centre', short: 'ANA', x: 0, z: 40, w: 16, d: 8, h: 4.8, facing: -1, color: '#8FA3B0', roofColor: '#566874', roof: 'flat', departmentIds: [], special: 'analytics' },
+  { id: 'CS-B', label: 'CS Building', short: 'CS-B', x: -28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#4F76B0', roofColor: '#3A5A8C', roof: 'flat', departmentIds: ['dept-cs'] },
+  { id: 'EC-B', label: 'ECE Building', short: 'EC-B', x: 28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#E0AA48', roofColor: '#B5472E', roof: 'pyramid', departmentIds: ['dept-ece'] },
+  { id: 'ME-B', label: 'Mech & Civil Building', short: 'ME-B', x: -28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#D2704F', roofColor: '#2F6B45', roof: 'slope', departmentIds: ['dept-mech', 'dept-civil'] },
+  { id: 'BT-B', label: 'Biotech Building', short: 'BT-B', x: 28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#5FA67C', roofColor: '#C9922B', roof: 'dome', departmentIds: ['dept-bio'] },
+  { id: 'OPS', label: 'Operations & Approval Centre', short: 'OPS', x: 0, z: -40, w: 16, d: 8, h: 4.8, facing: 1, color: '#B8905C', roofColor: '#2E6B63', roof: 'flat', departmentIds: [], special: 'operations' },
+  { id: 'ANA', label: 'Analytics Control Centre', short: 'ANA', x: 0, z: 40, w: 16, d: 8, h: 4.8, facing: -1, color: '#4F9DAD', roofColor: '#2D4A6B', roof: 'flat', departmentIds: [], special: 'analytics' },
 ]
 
 export const DEPT_FALLBACK: Record<string, { building: string; x: number; z: number; name: string }> = {
@@ -37,7 +37,9 @@ export const DEPT_FALLBACK: Record<string, { building: string; x: number; z: num
   'dept-bio': { building: 'BT-B', x: 28, z: 24, name: 'Biotechnology' },
 }
 
-export const CAMPUS_BOUND = 55
+export const CAMPUS_BOUND = 95
+/** Pond (decor + collider) in the south-west meadow. */
+export const POND = { x: -52, z: 52, r: 9 }
 export const DOOR_WIDTH = 2.9 // matches the Kenney wide doorway opening
 const WALL_T = 0.5
 
@@ -115,6 +117,7 @@ export function staticColliders(): AABB[] {
   for (const b of BUILDINGS) {
     if (b.special) { const c = consolePos(b); out.push(boxAt(c.x, c.z, 1.6, 0.6)) }
   }
+  out.push(boxAt(POND.x, POND.z, POND.r * 0.85, POND.r * 0.85))
   const cs = buildingById('CS-B')!
   const t = csAiTerminal(cs)
   out.push(boxAt(t.x, t.z, 0.8, 0.8))

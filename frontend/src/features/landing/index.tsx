@@ -111,7 +111,7 @@ export function Landing() {
           )}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat label="Equipment units" value={val(o?.total_units)} icon={<IconLayers size={18} />} gradient="brand" />
-            <Stat label="Laboratories" value={val(labs)} icon={<IconBuilding size={18} />} gradient="neutral" />
+            <Stat label="Laboratories" value={val(o?.laboratory_count ?? labs)} icon={<IconBuilding size={18} />} gradient="neutral" />
             <Stat label="Pending requests" value={val(o?.pending_requests)} icon={<IconClock size={18} />} gradient="warn" />
             <Stat label="Active bookings" value={val(o?.active_bookings)} icon={<IconCheckSquare size={18} />} gradient="avail" />
           </div>

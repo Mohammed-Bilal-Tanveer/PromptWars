@@ -15,7 +15,7 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
 @router.get("/queue")
-def queue(status: str = "pending_review,alternative_proposed", department_id: str | None = None,
+def queue(status: str = "pending_review,waitlisted,alternative_proposed", department_id: str | None = None,
           equipment_type_id: str | None = None, date: date | None = None, page: int = Query(1, ge=1),
           page_size: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)):
     stmt = request_filters(select(BookingRequest), status, department_id, equipment_type_id, date, None).order_by(

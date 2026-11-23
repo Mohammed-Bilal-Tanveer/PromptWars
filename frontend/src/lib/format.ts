@@ -47,6 +47,7 @@ export const REQUEST_STATUS_LABEL: Record<string, string> = {
   approved: 'Approved',
   rejected: 'Rejected',
   alternative_proposed: 'Alternative proposed',
+  waitlisted: 'Waitlisted',
   confirmed: 'Confirmed',
   cancelled: 'Cancelled',
   completed: 'Completed',

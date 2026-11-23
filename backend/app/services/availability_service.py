@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Booking, BookingRequest, EquipmentType, EquipmentUnit, MaintenanceWindow
 from app.utils_time import campus_tz, iso, local, local_day_bounds, local_dt, now_utc
@@ -221,7 +221,8 @@ def find_alternatives(db: Session, et: EquipmentType, start: datetime, end: date
 
 def utilisation_map(db: Session, window_start: datetime, window_end: datetime) -> dict[str, tuple[float, float]]:
     """equipment_type_id -> (booked_hours, capacity_hours) over window (confirmed+completed bookings)."""
-    types = db.scalars(select(EquipmentType)).all()
+    types = db.scalars(select(EquipmentType).options(selectinload(EquipmentType.units),
+                                                      selectinload(EquipmentType.laboratory))).all()
     rows = db.execute(
         select(EquipmentUnit.equipment_type_id, Booking.start_at, Booking.end_at)
         .join(EquipmentUnit, EquipmentUnit.id == Booking.equipment_unit_id)

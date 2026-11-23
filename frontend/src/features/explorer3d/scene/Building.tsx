@@ -9,9 +9,9 @@ import { FLOOR_H, MODULE, usePieceMeshes, type PieceMesh } from './kenney'
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 const benchMat = new THREE.MeshStandardMaterial({ color: '#8a6a4a', roughness: 0.8 })
-const lightMat = new THREE.MeshStandardMaterial({ color: '#fffdf5', emissive: '#fff6dc', emissiveIntensity: 0.8 })
+const lightMat = new THREE.MeshStandardMaterial({ color: '#ffd98a', emissive: '#ffc766', emissiveIntensity: 0.8 })
 const SIGN_BOARD_MAT = new THREE.MeshStandardMaterial({ color: '#2f3744', roughness: 0.75 })
-const doorMat = new THREE.MeshStandardMaterial({ color: '#8b93a7', roughness: 1 })
+const doorMat = new THREE.MeshStandardMaterial({ color: '#5a3d2b', roughness: 1 })
 const WALL_T = 0.5
 
 export function Bench({ x, z, rot = 0, height = 0.9 }: { x: number; z: number; rot?: number; height?: number }) {
@@ -50,7 +50,7 @@ function Modules({ meshes, items, material, shadow }: { meshes: PieceMesh[]; ite
 const HALF_PI = Math.PI / 2
 
 /** Mix a hex colour towards white so the kit's pale palette keeps a recognisable tint per building. */
-const tint = (hex: string, mix: number) => new THREE.Color(hex).lerp(new THREE.Color('#ffffff'), mix)
+const tint = (hex: string, _mix = 0) => new THREE.Color(hex)
 
 /** Kenney Building Kit shell: two storeys of walls/windows, doorway, columns, floor and flat roof (roof hides when inside). */
 function KitShell({ def }: { def: BuildingDef }) {
@@ -70,9 +70,9 @@ function KitShell({ def }: { def: BuildingDef }) {
   const fz = z + facing * hd, bz = z - facing * hd
 
   const map = (wall[0].material as THREE.MeshStandardMaterial).map
-  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.color, 0.12), emissive: tint(def.color, 0.55), emissiveIntensity: 0.16, roughness: 0.92, side: THREE.DoubleSide, transparent: true }), [map, def.color])
-  const roofMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.roofColor, 0.25), emissive: tint(def.roofColor, 0.5), emissiveIntensity: 0.06, roughness: 0.88, side: THREE.DoubleSide }), [map, def.roofColor])
-  const floorMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: '#d9dde8', roughness: 0.95 }), [map])
+  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.color), emissive: tint(def.color), emissiveIntensity: 0.1, roughness: 0.92, side: THREE.DoubleSide, transparent: true }), [map, def.color])
+  const roofMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.roofColor), emissive: tint(def.roofColor), emissiveIntensity: 0.08, roughness: 0.88, side: THREE.DoubleSide }), [map, def.roofColor])
+  const floorMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: '#a98c68', roughness: 0.95 }), [map])
   const roofRef = useRef<THREE.Group>(null)
 
   useFrame((_, dt) => {
@@ -231,7 +231,7 @@ export function Building({ def, benchSlots, children, hasAiTerminal }: {
               <boxGeometry args={[2.6, 0.9, 0.12]} />
               <meshStandardMaterial color={TERMINAL_ACCENT} emissive={TERMINAL_ACCENT} emissiveIntensity={0.35} roughness={0.5} />
             </mesh>
-            <Text position={[0, 2.3, 0]} rotation={[0, rot, 0]} fontSize={0.4} color="#1f2937" outlineWidth={0.025} outlineColor="#ffffff" anchorX="center">
+            <Text position={[0, 2.3, 0]} rotation={[0, rot, 0]} fontSize={0.4} color="#ffffff" outlineWidth={0.04} outlineColor="#10243a" anchorX="center">
               {def.special === 'operations' ? 'Approval Desk' : 'Analytics Console'}
             </Text>
           </group>

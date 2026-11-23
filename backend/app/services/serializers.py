@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     AuditEvent,
@@ -100,6 +100,16 @@ def audit_item(a: AuditEvent) -> dict:
             "note": a.note, "created_at": iso(a.created_at)}
 
 
+def queue_position(db: Session, r: BookingRequest) -> int | None:
+    """Estimated rank among waitlisted requests of the same equipment type (priority desc, created_at asc)."""
+    if r.status != "waitlisted":
+        return None
+    rows = db.execute(select(BookingRequest.id, BookingRequest.priority_score, BookingRequest.created_at).where(
+        BookingRequest.equipment_type_id == r.equipment_type_id, BookingRequest.status == "waitlisted")).all()
+    rows.sort(key=lambda x: (-(x[1] or 0.0), x[2], x[0]))
+    return next((i + 1 for i, x in enumerate(rows) if x[0] == r.id), None)
+
+
 def request_dict(db: Session, r: BookingRequest, detail: bool = False) -> dict:
     et = r.equipment_type
     booking = next((b for b in sorted(r.bookings, key=lambda x: x.created_at) if b.status != "cancelled"), None)
@@ -129,6 +139,7 @@ def request_dict(db: Session, r: BookingRequest, detail: bool = False) -> dict:
         "review_note": r.review_note, "requires_supervision": r.requires_supervision,
         "proposed_alternative": proposed, "booking": booking_dict(booking) if booking else None,
         "created_at": iso(r.created_at), "updated_at": iso(r.updated_at),
+        "queue_position": queue_position(db, r),
     }
     return d
 
@@ -139,7 +150,7 @@ def request_with_extras(db: Session, r: BookingRequest, detail: bool = False) ->
     et = r.equipment_type
     now = now_utc()
     states = av.unit_states(db, list(et.units), now)
-    if r.status in ("pending_review", "alternative_proposed"):
+    if r.status in ("pending_review", "waitlisted", "alternative_proposed"):
         # Pending requests: availability for the REQUESTED WINDOW (what the reviewer actually needs).
         free_in_window = len(av.free_units(db, et, r.requested_start_at, r.requested_end_at))
         d["availability_now"] = {"is_available": free_in_window > 0, "free_units": free_in_window,
@@ -149,7 +160,7 @@ def request_with_extras(db: Session, r: BookingRequest, detail: bool = False) ->
                                  "free_units": sum(1 for s in states.values() if s["is_free_now"]),
                                  "total_units": len(et.units)}
     rec = None
-    if r.status in ("pending_review", "alternative_proposed"):
+    if r.status in ("pending_review", "waitlisted", "alternative_proposed"):
         # is the requested window still free?
         if not av.free_units(db, et, r.requested_start_at, r.requested_end_at):
             alts = av.find_alternatives(db, et, r.requested_start_at, r.requested_end_at, limit=1)
@@ -183,11 +194,14 @@ def notification_dict(n: Notification) -> dict:
             "is_read": n.is_read, "created_at": iso(n.created_at)}
 
 
-def lab_dict(db: Session, lab: Laboratory, summaries: dict | None = None) -> dict:
+def lab_dict(db: Session, lab: Laboratory, summaries: dict | None = None, states: dict | None = None) -> dict:
     now = now_utc()
     ets = lab.equipment_types
     units = [u for et in ets for u in et.units]
-    states = av.unit_states(db, units, now) if units else {}
+    if states is None:
+        states = av.unit_states(db, units, now) if units else {}
+    else:
+        states = {u.id: states[u.id] for u in units if u.id in states}
     avail = sum(1 for s in states.values() if s["is_free_now"])
     d = lab.department
     return {
@@ -200,13 +214,18 @@ def lab_dict(db: Session, lab: Laboratory, summaries: dict | None = None) -> dic
     }
 
 
-def dept_dict(db: Session, dep: Department) -> dict:
+def dept_dict(db: Session, dep: Department, states: dict | None = None, util: dict | None = None) -> dict:
+    """states/util may be passed in (computed once for a whole list) to avoid repeating heavy queries per row."""
     now = now_utc()
     labs = dep.laboratories
     ets = [et for lab in labs for et in lab.equipment_types]
     units = [u for et in ets for u in et.units]
-    states = av.unit_states(db, units, now) if units else {}
-    util = av.utilisation_map(db, now - timedelta(days=7), now + timedelta(days=7))
+    if states is None:
+        states = av.unit_states(db, units, now) if units else {}
+    else:
+        states = {u.id: states[u.id] for u in units if u.id in states}
+    if util is None:
+        util = av.utilisation_map(db, now - timedelta(days=7), now + timedelta(days=7))
     booked = sum(util.get(et.id, (0, 0))[0] for et in ets)
     cap = sum(util.get(et.id, (0, 0))[1] for et in ets)
     return {
@@ -220,3 +239,28 @@ def dept_dict(db: Session, dep: Department) -> dict:
 
 def count(db: Session, model, *where) -> int:
     return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
+
+
+def _all_unit_states(db: Session) -> dict:
+    units = db.scalars(select(EquipmentUnit)).all()
+    return av.unit_states(db, units, now_utc()) if units else {}
+
+
+def dept_dicts(db: Session, deps: list[Department] | None = None) -> list[dict]:
+    """All departments with ONE set of queries (eager loading + shared availability/utilisation), not one set per row."""
+    if deps is None:
+        deps = list(db.scalars(
+            select(Department).order_by(Department.name).options(
+                selectinload(Department.laboratories)
+                .selectinload(Laboratory.equipment_types)
+                .selectinload(EquipmentType.units))).all())
+    now = now_utc()
+    states = _all_unit_states(db)
+    util = av.utilisation_map(db, now - timedelta(days=7), now + timedelta(days=7))
+    return [dept_dict(db, d, states=states, util=util) for d in deps]
+
+
+def lab_dicts(db: Session, labs: list[Laboratory]) -> list[dict]:
+    """Many laboratories with shared availability state (one unit_states call instead of one per lab)."""
+    states = _all_unit_states(db)
+    return [lab_dict(db, lab, states=states) for lab in labs]

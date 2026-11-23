@@ -5,11 +5,13 @@ import { input, playerState } from './playerState'
 import { AABB, locationFor, resolveCollisions } from '../environments/layout'
 import { findNearest, getInteractables } from '../interactions/registry'
 import { useExplorerStore } from '../stores/explorerStore'
+import { autoWalk, cancelWalk, startWalk } from '../interactions/navigation'
 import { PlayerModel } from './KenneyCharacter'
 
 const WALK = 4.2
 const RUN = 8
 const RADIUS = 0.45
+const PITCH = (52 * Math.PI) / 180
 
 const skin = new THREE.MeshStandardMaterial({ color: '#f1c27d', roughness: 0.8 })
 const shirt = new THREE.MeshStandardMaterial({ color: '#4f8bff', roughness: 0.7 })
@@ -95,9 +97,10 @@ export function BlobShadow({ size = 1.5 }: { size?: number }) {
 
 export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: boolean }) {
   const group = useRef<THREE.Group>(null)
+  const marker = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
   const acc = useRef(0)
-  const camPos = useMemo(() => new THREE.Vector3(0, 6, 16), [])
+  const camPos = useMemo(() => new THREE.Vector3(0, 12, 26), [])
   const look = useMemo(() => new THREE.Vector3(), [])
   const pos = useMemo(() => ({ x: playerState.x, z: playerState.z }), [])
 
@@ -127,25 +130,55 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
       rt += input.joy.x
     }
     const mag = Math.min(1, Math.hypot(fw, rt))
+    if (mag > 0.05 && autoWalk.target) cancelWalk()
     const sy = Math.sin(playerState.yaw), cy = Math.cos(playerState.yaw)
     let mx = 0, mz = 0
+    const faceTo = (tx: number, tz: number, dtt: number) => {
+      let diff = Math.atan2(tx, tz) - playerState.heading
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff))
+      playerState.heading += diff * Math.min(1, dtt * 12)
+    }
     if (mag > 0.05) {
       mx = -sy * fw + cy * rt
       mz = -cy * fw - sy * rt
       const l = Math.hypot(mx, mz) || 1
       mx /= l; mz /= l
-      const running = k.has('shift') || Math.hypot(input.joy.x, input.joy.y) > 0.92
-      const speed = (running ? RUN : WALK) * mag
+      const running = k.has('shift') || input.sprint || Math.hypot(input.joy.x, input.joy.y) > 0.92
+      const speed = (running ? RUN : WALK) * (input.sprint ? 1 : mag)
       pos.x = playerState.x + mx * speed * dt
       pos.z = playerState.z + mz * speed * dt
       resolveCollisions(pos, RADIUS, colliders)
       playerState.x = pos.x
       playerState.z = pos.z
       playerState.speed = speed
-      const target = Math.atan2(mx, mz)
-      let diff = target - playerState.heading
-      diff = Math.atan2(Math.sin(diff), Math.cos(diff))
-      playerState.heading += diff * Math.min(1, dt * 12)
+      faceTo(mx, mz, dt)
+    } else if (autoWalk.target && !paused) {
+      const wp = autoWalk.path[0]
+      autoWalk.age += dt
+      if (!wp || autoWalk.age > 15 || autoWalk.stuck > 1.2) {
+        cancelWalk()
+        playerState.speed = 0
+      } else {
+        const dx = wp.x - playerState.x, dz = wp.z - playerState.z
+        const d = Math.hypot(dx, dz)
+        const last = autoWalk.path.length === 1
+        if (d < (last ? 0.6 : 0.8)) {
+          autoWalk.path.shift()
+          if (!autoWalk.path.length) { cancelWalk(); playerState.speed = 0 }
+        } else {
+          const speed = input.sprint ? RUN : WALK
+          const step = Math.min(speed * dt, d)
+          pos.x = playerState.x + (dx / d) * step
+          pos.z = playerState.z + (dz / d) * step
+          resolveCollisions(pos, RADIUS, colliders)
+          const moved = Math.hypot(pos.x - playerState.x, pos.z - playerState.z)
+          autoWalk.stuck = moved < step * 0.3 ? autoWalk.stuck + dt : 0
+          playerState.x = pos.x
+          playerState.z = pos.z
+          playerState.speed = speed
+          faceTo(dx / d, dz / d, dt)
+        }
+      }
     } else {
       playerState.speed = 0
     }
@@ -155,16 +188,27 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
       group.current.rotation.y = playerState.heading
     }
 
-    // follow camera
+    // follow camera: fixed three-quarter top-down pitch, horizontal orbit only
     const inside = st.insideBuilding != null
-    const dist = inside ? 7 : 10
-    const height = inside ? 5.5 : 6.5
-    const want = new THREE.Vector3(playerState.x + sy * dist, height, playerState.z + cy * dist)
+    const dist = inside ? 12 : 16
+    const horiz = dist * Math.cos(PITCH), height = dist * Math.sin(PITCH)
+    const want = new THREE.Vector3(playerState.x + sy * horiz, height, playerState.z + cy * horiz)
     if (reduce) camPos.copy(want)
     else camPos.lerp(want, 1 - Math.exp(-6 * dt))
     camera.position.copy(camPos)
-    look.set(playerState.x, 1.4, playerState.z)
+    look.set(playerState.x, 0.8, playerState.z)
     camera.lookAt(look)
+
+    // destination marker
+    if (marker.current) {
+      const t = autoWalk.target
+      marker.current.visible = !!t
+      if (t) {
+        marker.current.position.set(t.x, 0.12, t.z)
+        const sc = reduce ? 1 : 1 + Math.sin(performance.now() / 250) * 0.12
+        marker.current.scale.set(sc, sc, sc)
+      }
+    }
 
     // throttled detection
     acc.current += dt
@@ -180,9 +224,27 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
 
   const characterId = useExplorerStore((st) => st.character)
   return (
-    <group ref={group}>
-      <BlobShadow size={1.7} />
-      <PlayerModel id={characterId} fallback={<ProceduralBody />} />
-    </group>
+    <>
+      <group ref={group}>
+        <BlobShadow size={1.7} />
+        <PlayerModel id={characterId} fallback={<ProceduralBody />} />
+      </group>
+      {/* invisible click-to-walk ground; ignores drags (orbit) */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.03, 0]}
+        onClick={(e) => {
+          if (paused || e.delta > 6) return
+          startWalk({ x: e.point.x, z: e.point.z })
+        }}
+      >
+        <planeGeometry args={[600, 600]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      <mesh ref={marker} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[0.45, 0.65, 32]} />
+        <meshBasicMaterial color="#1d4ed8" transparent opacity={0.85} depthWrite={false} />
+      </mesh>
+    </>
   )
 }

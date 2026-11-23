@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.errors import NotFound, ValidationFailed
@@ -34,7 +34,8 @@ def list_equipment(q: str | None = Query(default=None, max_length=200), departme
                    available_from: datetime | None = None, available_to: datetime | None = None,
                    sort: str = Query("relevance", pattern="^(relevance|availability|name|utilisation)$"),
                    page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)):
-    stmt = select(EquipmentType)
+    stmt = select(EquipmentType).options(selectinload(EquipmentType.units), selectinload(EquipmentType.laboratory),
+                                         selectinload(EquipmentType.department))
     if department_id:
         stmt = stmt.where(EquipmentType.department_id == department_id)
     if laboratory_id:

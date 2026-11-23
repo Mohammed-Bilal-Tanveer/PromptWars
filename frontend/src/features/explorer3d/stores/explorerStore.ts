@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import type { Interactable } from '../interactions/registry'
 import type { CharacterId } from '../scene/kenney'
+import { input } from '../character/playerState'
 
 export type PanelKind =
   | 'equipment' | 'department' | 'lab' | 'kiosk' | 'project' | 'bookings' | 'approvals'
-  | 'analytics' | 'assistant' | 'notifications' | 'search' | 'settings'
+  | 'analytics' | 'assistant' | 'notifications' | 'search' | 'settings' | 'map'
 export interface PanelState { kind: PanelKind; recordId?: string; tab?: 'calendar' | 'form' | 'tracker' | 'scheduling' }
 export type Quality = 'auto' | 'low' | 'high'
 export interface Waypoint { x: number; z: number; label: string }
@@ -27,6 +28,12 @@ interface ExplorerState {
   setQuality: (q: Quality) => void
   reduceMotion: boolean
   setReduceMotion: (v: boolean) => void
+  menuOpen: boolean
+  setMenuOpen: (v: boolean) => void
+  sprint: boolean
+  setSprint: (v: boolean) => void
+  fade: boolean
+  setFade: (v: boolean) => void
   character: CharacterId
   setCharacter: (c: CharacterId) => void
 }
@@ -43,7 +50,7 @@ const loadCharacter = (): CharacterId => {
 export const useExplorerStore = create<ExplorerState>((set, get) => ({
   panel: null,
   prevPanel: null,
-  openPanel: (p) => set((s) => ({ prevPanel: s.panel && s.panel.kind !== 'settings' ? s.panel : null, panel: p })),
+  openPanel: (p) => set((s) => ({ menuOpen: false, prevPanel: s.panel && s.panel.kind !== 'settings' ? s.panel : null, panel: p })),
   closePanel: () => set({ panel: null, prevPanel: null }),
   back: () => {
     const prev = get().prevPanel
@@ -61,6 +68,12 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
   setQuality: (q) => set({ quality: q }),
   reduceMotion: prefersReduced(),
   setReduceMotion: (v) => set({ reduceMotion: v }),
+  menuOpen: false,
+  setMenuOpen: (v) => set({ menuOpen: v }),
+  sprint: false,
+  setSprint: (v) => { input.sprint = v; set({ sprint: v }) },
+  fade: false,
+  setFade: (v) => set({ fade: v }),
   character: loadCharacter(),
   setCharacter: (c) => {
     try { localStorage.setItem(CHAR_KEY, c) } catch { /* storage unavailable */ }

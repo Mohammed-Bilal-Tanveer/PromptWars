@@ -25,7 +25,7 @@ def overview(db: Session) -> dict:
     maint = sum(1 for s in states.values() if s["in_maintenance"])
     occupied = len(units) - free - maint
     sc = {s: count(db, BookingRequest, BookingRequest.status == s) for s in
-          ("pending_review", "approved", "rejected", "confirmed", "cancelled", "alternative_proposed", "completed")}
+          ("pending_review", "approved", "rejected", "confirmed", "cancelled", "alternative_proposed", "completed", "waitlisted")}
     reviewed = db.execute(select(BookingRequest.created_at, BookingRequest.reviewed_at)
                           .where(BookingRequest.reviewed_at.is_not(None))).all()
     avg = None
@@ -44,11 +44,12 @@ def overview(db: Session) -> dict:
         "total_units": len(units), "units_available": free, "units_occupied": max(occupied, 0),
         "units_maintenance": maint,
         "active_bookings": count(db, Booking, Booking.status == "confirmed", Booking.end_at >= now),
-        "pending_requests": sc["pending_review"] + sc["alternative_proposed"],
+        "pending_requests": sc["pending_review"] + sc["alternative_proposed"], "waitlisted_count": sc["waitlisted"],
         "approved_count": sc["approved"] + sc["confirmed"] + sc["completed"], "rejected_count": sc["rejected"],
         "confirmed_count": sc["confirmed"], "cancelled_count": sc["cancelled"], "avg_review_minutes": avg,
         "conflict_count": conflict_count, "alternatives_proposed": proposed, "alternatives_accepted": accepted,
         "alternative_acceptance_rate": round(accepted / proposed, 3) if proposed else None,
+        "laboratory_count": count(db, Laboratory), "department_count": count(db, Department),
         "is_demo_data": True, "data_label": DATA_LABEL,
     }
 
@@ -56,7 +57,7 @@ def overview(db: Session) -> dict:
 def _conflict_estimate(db: Session, now) -> int:
     """Pending requests whose window has no free unit right now."""
     n = 0
-    for r in db.scalars(select(BookingRequest).where(BookingRequest.status.in_(["pending_review", "alternative_proposed"]))).all():
+    for r in db.scalars(select(BookingRequest).where(BookingRequest.status.in_(["pending_review", "waitlisted", "alternative_proposed"]))).all():
         if not av.free_units(db, r.equipment_type, r.requested_start_at, r.requested_end_at):
             n += 1
     return n

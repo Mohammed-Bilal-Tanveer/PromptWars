@@ -17,6 +17,15 @@ from app.utils_time import iso, to_utc
 
 router = APIRouter(tags=["scheduling"])
 
+HARD_CONSTRAINTS = (
+    "Equipment unit is operational",
+    "Requested duration fits the lab's opening hours",
+    "Lab is open for the whole session",
+    "No overlap with confirmed bookings, setup/cleanup buffers or maintenance",
+    "Slot is inside the scheduling horizon",
+    "At most one allocation per request",
+)
+
 ZERO_FACTORS = {"deadline_urgency": 0.0, "waiting_time": 0.0, "fairness": 0.0, "preference_fit": 0.0}
 
 
@@ -54,7 +63,8 @@ def run_recommendations(db: Session, body: SchedulingRequestBody, now: datetime 
             earliest = max(h_start, window_start) if window_start else h_start
             sreqs.append(SolverRequest(r.id, r.equipment_type_id, "", dur, max(r.requested_start_at, earliest), float(score),
                                        earliest=earliest, latest_end=window_end, label=r.id))
-            meta[r.id] = {"request_id": r.id, "score": score, "factors": fac, "assumptions": []}
+            meta[r.id] = {"request_id": r.id, "score": score, "factors": fac, "assumptions": [], "project_title": r.project_title or None,
+                          "deadline": iso(r.deadline) if r.deadline else None, "req_start": iso(r.requested_start_at), "req_end": iso(r.requested_end_at)}
             type_ids.append(r.equipment_type_id)
     elif body.equipment_type_id and body.duration_minutes:
         et = sd.load_types(db, [body.equipment_type_id]).get(body.equipment_type_id)
@@ -67,6 +77,7 @@ def run_recommendations(db: Session, body: SchedulingRequestBody, now: datetime 
         sreqs.append(SolverRequest("adhoc", et.id, et.name, body.duration_minutes, max(pref, earliest), p["score"], earliest=earliest,
                                    latest_end=min((x for x in (window_end, deadline) if x), default=None), label="ad-hoc request"))
         meta["adhoc"] = {"request_id": None, "score": p["score"], "factors": p["factors"],
+                         "project_title": None, "deadline": iso(deadline) if deadline else None, "req_start": iso(pref), "req_end": None,
                          "assumptions": ["Ad-hoc recommendation: synthetic request, priority derived from the deadline only."]}
         type_ids.append(et.id)
     else:
@@ -92,6 +103,10 @@ def run_recommendations(db: Session, body: SchedulingRequestBody, now: datetime 
     out = solve(sreqs, units, busy, h_start, h_end, grid=sd.GRID, time_limit=min(s.solver_time_limit_seconds, 5.0), workers=1, compatible_units=compat)
 
     unit_name = {u.id: u.name for u in all_units}
+    eligible_by_type: dict[str, list] = {}
+    for u in units:
+        if u.status == "operational":
+            eligible_by_type.setdefault(u.type_id, []).append(u)
     conflicts_all = sd.detect_conflicts(db, now)
     results = []
     for sr in sreqs:
@@ -116,10 +131,34 @@ def run_recommendations(db: Session, body: SchedulingRequestBody, now: datetime 
             "request_id": m["request_id"], "equipment_type_id": sr.type_id, "equipment_name": sr.type_name,
             "allocation_status": status, "recommended": rec, "priority_score": round(float(m["score"]), 4),
             "priority_factors": m["factors"], "explanation": expl, "conflicts": mine, "alternatives": alts,
+            "project_title": m.get("project_title"), "deadline": m.get("deadline"),
+            "requested_start_at": m.get("req_start"), "requested_end_at": m.get("req_end"),
+            "eligible_units": len(eligible_by_type.get(sr.type_id, [])),
+            "hard_constraints_checked": list(HARD_CONSTRAINTS),
+            "shift_minutes": int(abs((a.start - sr.preferred_start).total_seconds()) // 60) if a is not None else None,
             "assumptions": m["assumptions"] + ["Recommendation only: nothing is booked until a coordinator approves it.",
                                                f"Scheduled on a {sd.GRID}-minute grid over {body.horizon_days} day(s); confirmed bookings and maintenance are fixed."],
         })
+    titles = {sr.id: meta[sr.id].get("project_title") for sr in sreqs}
+    unit_ids = {u.id for u in units}
+    horizon_busy = [b for b in busy if b.unit_id in unit_ids and b.end > h_start and b.start < h_end]
+    timeline = []
+    for u in units:
+        locked = [{"start_at": iso(b.start), "end_at": iso(b.end), "kind": b.kind,
+                   "label": "Confirmed booking" if b.kind == "booking" else "Maintenance window"}
+                  for b in sorted(horizon_busy, key=lambda x: x.start) if b.unit_id == u.id]
+        recs = [{"request_id": meta[sr.id]["request_id"], "start_at": iso(a.start), "end_at": iso(a.end), "project_title": titles.get(sr.id)}
+                for sr in sreqs if (a := out.assignments.get(sr.id)) is not None and a.unit_id == u.id]
+        timeline.append({"unit_id": u.id, "unit_name": u.name, "equipment_type_id": u.type_id, "locked": locked, "recommended": recs})
+    assigned = sum(1 for sr in sreqs if out.assignments.get(sr.id) is not None)
+    summary = {
+        "requests_considered": len(sreqs), "feasible_assignments": assigned, "unresolved": len(sreqs) - assigned,
+        "units_considered": len(units), "fixed_blocks": len(horizon_busy), "solve_time_ms": out.solve_time_ms,
+        "horizon_start": iso(h_start), "horizon_end": iso(h_end), "horizon_days": body.horizon_days,
+        "grid_minutes": sd.GRID, "solver_status": out.status,
+    }
     return {
+        "summary": summary, "timeline": timeline,
         "solver": "cp-sat", "solver_status": out.status, "solve_time_ms": out.solve_time_ms,
         "weights": {"deadline_urgency": s.w_deadline, "waiting_time": s.w_waiting, "fairness": s.w_fairness, "preference_fit": s.w_preference},
         "horizon_days": body.horizon_days, "results": results,

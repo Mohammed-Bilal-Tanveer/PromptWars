@@ -9,7 +9,7 @@ from app.services.booking_service import confirm_booking, find_alternatives, get
 from app.services.notification_service import REVIEWER, audit, notify, record_approval
 from app.utils_time import iso, now_utc, to_utc
 
-REVIEWABLE = ("pending_review", "alternative_proposed")
+REVIEWABLE = ("pending_review", "waitlisted", "alternative_proposed")
 
 
 def approve(db: Session, request_id: str, note: str | None, reviewer: str | None) -> tuple[BookingRequest, Booking]:

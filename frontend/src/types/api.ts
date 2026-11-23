@@ -20,6 +20,7 @@ export type BookingRequestStatus =
   | 'approved'
   | 'rejected'
   | 'alternative_proposed'
+  | 'waitlisted'
   | 'confirmed'
   | 'cancelled'
   | 'completed'
@@ -30,6 +31,7 @@ export type NotificationType =
   | 'request_approved'
   | 'request_rejected'
   | 'alternative_proposed'
+  | 'waitlist_joined'
   | 'booking_confirmed'
   | 'booking_reminder'
   | 'booking_cancelled'
@@ -346,6 +348,7 @@ export interface BookingRequest {
   status: BookingRequestStatus
   priority_score: number
   priority_factors: PriorityFactors
+  queue_position?: number | null
   review_note: string | null
   requires_supervision: boolean
   proposed_alternative: {
@@ -376,6 +379,7 @@ export interface BookingRequestCreate {
   estimated_hours?: number
   purpose: string
   deadline?: string
+  join_waitlist?: boolean
 }
 export interface BookingRequestQuery {
   status?: string
@@ -443,6 +447,7 @@ export interface AnalyticsOverview {
   units_maintenance: number
   active_bookings: number
   pending_requests: number
+  waitlisted_count?: number
   approved_count: number
   rejected_count: number
   confirmed_count: number
@@ -452,6 +457,8 @@ export interface AnalyticsOverview {
   alternatives_proposed: number
   alternatives_accepted: number
   alternative_acceptance_rate: number | null
+  laboratory_count?: number
+  department_count?: number
   is_demo_data: boolean
   data_label: string
 }

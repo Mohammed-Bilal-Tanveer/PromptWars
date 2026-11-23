@@ -8,7 +8,7 @@ import type { BookingRequest } from '@/types/api'
 import { FactorBars, Section, Timeline, apiDetails } from './parts'
 
 const PAGE = 10
-const CANCELLABLE = ['pending_review', 'alternative_proposed', 'confirmed']
+const CANCELLABLE = ['pending_review', 'waitlisted', 'alternative_proposed', 'confirmed']
 
 export function RequestDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const q = useBookingRequest(id)
@@ -33,6 +33,12 @@ export function RequestDetail({ id, onClose }: { id: string; onClose: () => void
             <p className="mt-2 text-sm leading-relaxed">{r.purpose}</p>
             <p className="mt-2 text-xs text-subtle">Requested by {r.requester_name} ({r.requester_department_name})</p>
           </div>
+          {r.status === 'waitlisted' && (
+            <Notice tone="info" title="You are in the allocation queue">
+              <p>This is not a reservation. LabLink includes waitlisted requests in future scheduling recommendations, and a reviewer must still approve a slot.</p>
+              <p className="mt-1">Estimated queue position: <strong>{r.queue_position != null ? `#${r.queue_position}` : 'not available yet'}</strong>. It can change when other requests or availability change.</p>
+            </Notice>
+          )}
           {r.review_note && <Notice tone="info" title="Reviewer note">{r.review_note}</Notice>}
           <div aria-live="polite">{err && <Notice tone="danger">{err}</Notice>}</div>
 
@@ -64,23 +70,28 @@ export function RequestDetail({ id, onClose }: { id: string; onClose: () => void
           <Section title={`Priority score ${Math.round(r.priority_score * 100)}%`}>
             <FactorBars factors={r.priority_factors} />
           </Section>
+          {r.status === 'waitlisted' && (
+            <Section title="Current alternatives">
+              {r.recommendation ? <p className="text-sm">{formatRange(r.recommendation.start_at, r.recommendation.end_at)} · {r.recommendation.equipment_name} ({r.recommendation.unit_name}){r.recommendation.reason ? ` — ${r.recommendation.reason}` : ''}</p> : <p className="text-sm text-muted">No alternative slot is available right now.</p>}
+            </Section>
+          )}
           <Section title="History"><Timeline items={r.timeline ?? []} /></Section>
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
             <Button variant="secondary" onClick={onClose}>Close</Button>
-            {CANCELLABLE.includes(r.status) && <Button variant="danger" onClick={() => setConfirm(true)}>Cancel request</Button>}
+            {CANCELLABLE.includes(r.status) && <Button variant="danger" onClick={() => setConfirm(true)}>{r.status === 'waitlisted' ? 'Leave queue' : 'Cancel request'}</Button>}
           </div>
           <ConfirmDialog
             open={confirm}
-            title="Cancel this request?"
-            message={r.status === 'confirmed' ? 'This will also cancel the confirmed booking and free the slot.' : 'The request will be withdrawn from the approval queue.'}
-            confirmLabel="Cancel request"
+            title={r.status === 'waitlisted' ? 'Leave the allocation queue?' : 'Cancel this request?'}
+            message={r.status === 'confirmed' ? 'This will also cancel the confirmed booking and free the slot.' : r.status === 'waitlisted' ? 'Your request will be cancelled and removed from the queue. You can join again later if the slot is still unavailable.' : 'The request will be withdrawn from the approval queue.'}
+            confirmLabel={r.status === 'waitlisted' ? 'Leave queue' : 'Cancel request'}
             variant="danger"
             loading={cancel.isPending}
             onCancel={() => setConfirm(false)}
             onConfirm={() =>
               cancel.mutate(r.id, {
-                onSuccess: () => { toast.success('Request cancelled'); setConfirm(false) },
+                onSuccess: () => { toast.success(r.status === 'waitlisted' ? 'Left the queue' : 'Request cancelled'); setConfirm(false) },
                 onError: (e) => { setConfirm(false); const x = apiDetails(e); setErr(x.message); toast.error('Could not cancel', x.message) },
               })
             }

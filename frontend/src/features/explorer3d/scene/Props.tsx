@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard, Html, Text } from '@react-three/drei'
 import * as THREE from 'three'
@@ -9,16 +9,13 @@ const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 12)
 /** Single accent used by every terminal / kiosk screen in the scene. */
 export const TERMINAL_ACCENT = '#2563EB'
-const darkMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.7 })
-const metalMat = new THREE.MeshStandardMaterial({ color: '#9aa4b8', roughness: 0.4, metalness: 0.4 })
-const whiteMat = new THREE.MeshStandardMaterial({ color: '#e5e7eb', roughness: 0.6 })
+const darkMat = new THREE.MeshStandardMaterial({ color: '#1E3A5F', roughness: 0.7 })
+const metalMat = new THREE.MeshStandardMaterial({ color: '#7f8ba3', roughness: 0.4, metalness: 0.4 })
+const whiteMat = new THREE.MeshStandardMaterial({ color: '#8393A8', roughness: 0.6 })
+const tealMat = new THREE.MeshStandardMaterial({ color: '#0F5C66', roughness: 0.6 })
 const boardMat = new THREE.MeshStandardMaterial({ color: '#5f7b72', roughness: 0.7 })
-const screenMat = new THREE.MeshStandardMaterial({ color: '#9fb6d6', emissive: '#7f9cc4', emissiveIntensity: 0.35 })
+const screenMat = new THREE.MeshStandardMaterial({ color: '#5f86c4', emissive: '#4a72b0', emissiveIntensity: 0.35 })
 const woodMat = new THREE.MeshStandardMaterial({ color: '#8a6a4a', roughness: 0.85 })
-const trunkMat = new THREE.MeshStandardMaterial({ color: '#6b4a2b', roughness: 0.9 })
-const leafMat = new THREE.MeshStandardMaterial({ color: '#5e8a58', roughness: 0.9, flatShading: true })
-const trunkGeo = new THREE.CylinderGeometry(0.2, 0.28, 1.6, 6)
-const leafGeo = new THREE.ConeGeometry(1.1, 2.6, 7)
 
 /** Information terminal: neutral pedestal + softly lit screen in the single accent colour. Short label only. */
 export function Terminal({ x, z, color, label, rotY = 0 }: { x: number; z: number; color: string; label: string; rotY?: number }) {
@@ -38,7 +35,7 @@ export function Terminal({ x, z, color, label, rotY = 0 }: { x: number; z: numbe
         <meshStandardMaterial color="#cfd4dc" emissive={color} emissiveIntensity={0.25} />
       </mesh>
       <Billboard position={[0, 2.8, 0]}>
-        <Text fontSize={0.34} color="#1f2937" outlineWidth={0.035} outlineColor="#ffffff" anchorX="center">{label}</Text>
+        <Text fontSize={0.34} color="#ffffff" outlineWidth={0.05} outlineColor="#10243a" anchorX="center">{label}</Text>
       </Billboard>
     </group>
   )
@@ -47,14 +44,15 @@ export function Terminal({ x, z, color, label, rotY = 0 }: { x: number; z: numbe
 export function Kiosk({ x, z }: { x: number; z: number }) {
   return (
     <group position={[x, 0, z]}>
-      <mesh geometry={boxGeo} material={whiteMat} position={[0, 0.6, 0]} scale={[1.6, 1.2, 1.2]} castShadow />
+      <mesh geometry={boxGeo} material={tealMat} position={[0, 0.6, 0]} scale={[1.6, 1.2, 1.2]} castShadow />
+      <mesh geometry={boxGeo} material={woodMat} position={[0, 1.25, 0]} scale={[1.8, 0.12, 1.4]} />
       <mesh position={[0, 1.55, 0]} rotation={[-0.3, 0, 0]}>
         <boxGeometry args={[1.4, 0.8, 0.1]} />
         <meshStandardMaterial color={TERMINAL_ACCENT} emissive={TERMINAL_ACCENT} emissiveIntensity={0.4} roughness={0.45} />
       </mesh>
       <mesh geometry={cylGeo} material={metalMat} position={[0, 2.3, 0]} scale={[0.5, 0.1, 0.5]} />
       <Billboard position={[0, 2.9, 0]}>
-        <Text fontSize={0.34} color="#1f2937" outlineWidth={0.035} outlineColor="#ffffff" anchorX="center">Information Kiosk</Text>
+        <Text fontSize={0.34} color="#ffffff" outlineWidth={0.05} outlineColor="#10243a" anchorX="center">Information Kiosk</Text>
       </Billboard>
     </group>
   )
@@ -69,54 +67,9 @@ export function WelcomeSign({ x, z }: { x: number; z: number }) {
       <Text position={[0, 2.05, 0.1]} fontSize={0.38} color="#ffffff" anchorX="center">
         Welcome to LabLink Campus
       </Text>
-      <Text position={[0, 1.65, 0.1]} fontSize={0.2} color="#cbd5e1" anchorX="center">
+      <Text position={[0, 1.65, 0.1]} fontSize={0.2} color="#f2d9a0" anchorX="center">
         Sample campus data
       </Text>
-    </group>
-  )
-}
-
-/** Deterministic pseudo-random */
-function rng(seed: number) {
-  let s = seed
-  return () => {
-    s = (s * 16807) % 2147483647
-    return (s - 1) / 2147483646
-  }
-}
-
-export function Trees({ count, avoid }: { count: number; avoid: { x: number; z: number; r: number }[] }) {
-  const trunks = useRef<THREE.InstancedMesh>(null)
-  const leaves = useRef<THREE.InstancedMesh>(null)
-  const pts = useMemo(() => {
-    const r = rng(42)
-    const out: { x: number; z: number; s: number }[] = []
-    let guard = 0
-    while (out.length < count && guard++ < count * 40) {
-      const x = (r() - 0.5) * 108
-      const z = (r() - 0.5) * 108
-      if (avoid.some((a) => Math.hypot(a.x - x, a.z - z) < a.r)) continue
-      if (Math.abs(x) < 3 && Math.abs(z) < 50) continue // central avenue
-      if (Math.abs(z) < 3) continue
-      out.push({ x, z, s: 0.8 + r() * 0.7 })
-    }
-    return out
-  }, [count, avoid])
-  useEffect(() => {
-    const m = new THREE.Matrix4()
-    pts.forEach((p, i) => {
-      m.compose(new THREE.Vector3(p.x, 0.8 * p.s, p.z), new THREE.Quaternion(), new THREE.Vector3(p.s, p.s, p.s))
-      trunks.current?.setMatrixAt(i, m)
-      m.compose(new THREE.Vector3(p.x, 2.7 * p.s, p.z), new THREE.Quaternion(), new THREE.Vector3(p.s, p.s, p.s))
-      leaves.current?.setMatrixAt(i, m)
-    })
-    if (trunks.current) trunks.current.instanceMatrix.needsUpdate = true
-    if (leaves.current) leaves.current.instanceMatrix.needsUpdate = true
-  }, [pts])
-  return (
-    <group>
-      <instancedMesh ref={trunks} args={[trunkGeo, trunkMat, pts.length]} castShadow={false} />
-      <instancedMesh ref={leaves} args={[leafGeo, leafMat, pts.length]} />
     </group>
   )
 }

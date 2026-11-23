@@ -13,7 +13,7 @@ from app.services.scheduling_service import Busy, SolverUnit
 from app.utils_time import campus_tz, iso, local_dt
 
 GRID = 15
-PENDING = ("pending_review", "alternative_proposed")
+PENDING = ("pending_review", "waitlisted", "alternative_proposed")
 
 
 def ceil_grid(dt: datetime, grid: int = GRID) -> datetime:

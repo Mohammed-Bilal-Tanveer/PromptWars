@@ -6,7 +6,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useEquipmentList } from '@/hooks/useApi'
 import { Loader } from '@react-three/drei'
 import Scene from './scene/Scene'
-import { ExitButton, InteractPrompt, Minimap, Objective, QuickActions, StatusLegend, TouchControls } from './hud/Hud'
+import { ExitButton, InteractPrompt, Minimap, Objective, MenuButton, StatusLegend, TouchControls } from './hud/Hud'
 import { CANVAS_WRAP_ID, PanelHost } from './hud/PanelHost'
 import { input, resetPlayer } from './character/playerState'
 import { clearInteractables } from './interactions/registry'
@@ -62,6 +62,7 @@ function Explorer() {
   const equipment = useMemo(() => eqQuery.data?.items ?? [], [eqQuery.data])
   const highlighted = useAppStore((s) => s.highlightedEquipmentIds)
   const panel = useExplorerStore((s) => s.panel)
+  const fade = useExplorerStore((s) => s.fade)
   const wrap = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; x: number } | null>(null)
 
@@ -69,7 +70,7 @@ function Explorer() {
     resetPlayer()
     clearInteractables()
     wrap.current?.focus()
-    return () => { input.reset(); clearInteractables(); useExplorerStore.setState({ panel: null, prevPanel: null, nearest: null, waypoint: null }) }
+    return () => { input.reset(); clearInteractables(); useExplorerStore.setState({ panel: null, prevPanel: null, nearest: null, waypoint: null, menuOpen: false, sprint: false, fade: false }) }
   }, [])
 
   useEffect(() => {
@@ -80,11 +81,18 @@ function Explorer() {
     const down = (e: KeyboardEvent) => {
       const st = useExplorerStore.getState()
       if (e.key === 'Escape') {
+        if (st.menuOpen) { st.setMenuOpen(false); return }
         if (st.panel) st.closePanel()
         else st.openPanel({ kind: 'settings' })
         return
       }
       if (st.panel || typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key === 'Enter') {
+        const el = e.target as HTMLElement | null
+        if (st.menuOpen || (el && (el.tagName === 'BUTTON' || el.tagName === 'A'))) return
+        interactNearest()
+        return
+      }
       const k = e.key.toLowerCase()
       if (k === 'e') { interactNearest(); return }
       if (['w', 'a', 's', 'd', 'q', 'r', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
@@ -117,7 +125,7 @@ function Explorer() {
         ref={wrap}
         tabIndex={-1}
         role="application"
-        aria-label="3D campus. Use W A S D or arrow keys to move, Shift to run, E to interact, Escape for settings."
+        aria-label="3D campus. Use W A S D or arrow keys to move, Shift to run, E or Enter to interact, click the ground to walk, Escape for settings."
         className="absolute inset-0 touch-none outline-none"
         onPointerDown={(e) => {
           drag.current = { id: e.pointerId, x: e.clientX }
@@ -139,19 +147,17 @@ function Explorer() {
 
       {/* HUD */}
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="pointer-events-auto absolute left-3 top-3 flex max-w-[60%] flex-col items-start gap-2">
+        <div className="pointer-events-auto absolute left-3 top-3 flex max-w-[calc(100%-8.5rem)] flex-col items-start gap-2 sm:max-w-[60%]">
           <ExitButton />
           <LocationLabel />
           <Objective />
         </div>
         <div className="pointer-events-auto absolute right-3 top-3 flex flex-col items-end gap-2">
+          <MenuButton />
           <Minimap equipment={equipment} highlightedIds={highlighted} />
           <div className="hidden sm:block"><StatusLegend /></div>
         </div>
         <InteractPrompt />
-        <div className="absolute bottom-3 left-1/2 w-[min(100%-9rem,56rem)] -translate-x-1/2 max-sm:bottom-36 max-sm:w-[calc(100%-1.5rem)]">
-          <QuickActions />
-        </div>
         <TouchControls />
         {eqQuery.isError && (
           <div role="alert" className="pointer-events-auto absolute left-1/2 top-3 -translate-x-1/2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 shadow-raised">
@@ -166,6 +172,7 @@ function Explorer() {
         dataStyles={{ color: '#475467', fontSize: 13, fontFamily: 'system-ui, "Segoe UI", sans-serif', fontWeight: 500 }}
         dataInterpolation={(p) => `Loading 3D campus… ${p.toFixed(0)}%`}
       />
+      <div aria-hidden className={`pointer-events-none absolute inset-0 z-30 bg-black transition-opacity duration-200 ${fade ? 'opacity-100' : 'opacity-0'}`} />
       <PanelHost equipment={equipment} />
     </div>
   )

@@ -8,7 +8,9 @@ import { useAppStore, toast } from '@/stores/appStore'
 import { campusDateOf, campusTimeOf, formatRange, localISO } from '@/lib/format'
 import { BookingForm } from '@/features/bookings/BookingForm'
 import { AlternativeList, FactorBars, Section, apiDetails } from '@/features/bookings/parts'
-import type { Alternative, Conflict, SchedulingResponse, SchedulingResult } from '@/types/api'
+import type { Alternative, Conflict, SchedulingResult } from '@/types/api'
+import { DecisionVisualiser } from './DecisionVisualiser'
+import type { DecisionResponse } from './types'
 
 const SEV_TONE = { high: 'danger', medium: 'warn', low: 'info' } as const
 
@@ -32,13 +34,13 @@ function ConflictList({ items }: { items: Conflict[] }) {
 
 export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
   const conflicts = useConflicts()
-  const pending = useBookingRequests({ status: 'pending_review,alternative_proposed', page_size: 50 })
+  const pending = useBookingRequests({ status: 'pending_review,waitlisted,alternative_proposed', page_size: 50 })
   const eqList = useEquipmentList({ page_size: 100, sort: 'name' })
   const recommend = useRecommend()
   const propose = useProposeAlternative()
   const setDraft = useAppStore((s) => s.setBookingDraft)
 
-  const [resp, setResp] = useState<SchedulingResponse | null>(null)
+  const [resp, setResp] = useState<DecisionResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formFor, setFormFor] = useState<string | null>(null)
   const [eqId, setEqId] = useState('')
@@ -51,7 +53,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
   const run = (body: Parameters<typeof recommend.mutate>[0]) => {
     setError(null)
     recommend.mutate(body, {
-      onSuccess: (r) => setResp(r),
+      onSuccess: (r) => setResp(r as DecisionResponse),
       onError: (e) => setError(apiDetails(e).message),
     })
   }
@@ -80,7 +82,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
     })
   }
 
-  const useSlot = (res: SchedulingResult, a: Alternative) => {
+  const useSlot = (res: Pick<SchedulingResult, 'request_id'>, a: Alternative) => {
     if (res.request_id) {
       propose.mutate(
         { id: res.request_id, start_at: a.start_at, end_at: a.end_at, equipment_unit_id: a.unit_id, equipment_type_id: a.equipment_type_id },
@@ -117,7 +119,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
         <Card className="space-y-3">
           <Section title="Optimise pending requests">
             <p className="text-sm text-muted">
-              Jointly allocate all {pending.data?.total ?? 0} pending or alternative-proposed requests over the next 7 days.
+              Jointly allocate all {pending.data?.total ?? 0} pending, waitlisted or alternative-proposed requests over the next 7 days.
             </p>
             <div className="pt-1"><Button onClick={optimise} loading={recommend.isPending} disabled={pending.isLoading}><IconSliders size={18} /> Optimise pending requests</Button></div>
           </Section>
@@ -156,10 +158,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
         {error && <Notice tone="danger" title="Scheduling failed">{error}</Notice>}
         {resp && (
           <>
-            {resp.results.length === 0 && <EmptyState title="No recommendations" hint="Try a different window or duration." />}
-            {resp.results.map((r, i) => (
-              <ResultCard key={`${r.request_id ?? 'adhoc'}-${i}`} r={r} weights={resp.weights} onUse={useSlot} busy={propose.isPending} />
-            ))}
+            {resp.results.length === 0 ? <EmptyState title="No recommendations" hint="Try a different window or duration." /> : <DecisionVisualiser data={resp} onUse={useSlot} busy={propose.isPending} />}
             <p className="rounded-lg bg-surface2 px-3 py-2 text-xs text-muted" data-testid="solver-footer">
               Solved with OR-Tools CP-SAT in {Math.round(resp.solve_time_ms)} ms (status: {resp.solver_status}) — recommendation only, nothing is booked automatically.
             </p>
@@ -185,40 +184,5 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
         {formFor && <BookingForm equipmentId={formFor} embedded onCancel={() => setFormFor(null)} />}
       </Modal>
     </div>
-  )
-}
-
-function ResultCard({ r, weights, onUse, busy }: { r: SchedulingResult; weights: SchedulingResponse['weights']; onUse: (r: SchedulingResult, a: Alternative) => void; busy: boolean }) {
-  return (
-    <Card className="space-y-4" aria-label={`Result for ${r.equipment_name}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="font-semibold">{r.equipment_name}</h3>
-          <p className="font-mono text-xs text-subtle">{r.request_id ? `Request ${r.request_id}` : 'Ad-hoc search'}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusChip status={r.allocation_status} />
-          <Chip tone="ai">Priority {Math.round(r.priority_score * 100)}%</Chip>
-        </div>
-      </div>
-      {r.recommended ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950"><strong className="font-semibold">Recommended:</strong> {r.recommended.unit_name} · {formatRange(r.recommended.start_at, r.recommended.end_at)}</p>
-      ) : (
-        <p className="text-sm text-muted">No feasible slot was found for this request.</p>
-      )}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Section title="Priority factors"><FactorBars factors={r.priority_factors} weights={weights} /></Section>
-        <Section title="Why this result">
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted marker:text-subtle">{r.explanation.map((x, i) => <li key={i}>{x}</li>)}</ul>
-        </Section>
-      </div>
-      {r.conflicts.length > 0 && <Section title="Conflicts"><ConflictList items={r.conflicts} /></Section>}
-      <Section title="Alternatives">
-        <AlternativeList items={r.alternatives} onPick={(a) => onUse(r, a)} pickLabel={r.request_id ? 'Propose to requester' : 'Use this slot'} busy={busy} />
-      </Section>
-      {r.assumptions.length > 0 && (
-        <Section title="Assumptions"><ul className="list-disc pl-5 text-xs text-muted">{r.assumptions.map((x, i) => <li key={i}>{x}</li>)}</ul></Section>
-      )}
-    </Card>
   )
 }

@@ -32,8 +32,8 @@ describe('collision', () => {
   it('clamps to campus bounds', () => {
     const p = { x: 200, z: -200 }
     resolveCollisions(p, 0.4, [])
-    expect(p.x).toBe(55)
-    expect(p.z).toBe(-55)
+    expect(p.x).toBe(95)
+    expect(p.z).toBe(-95)
   })
 })
 

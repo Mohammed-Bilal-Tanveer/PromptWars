@@ -11,6 +11,8 @@ from app.services import availability_service as av
 from app.services.notification_service import audit, notify
 from app.utils_time import iso, now_utc, to_utc
 
+ACTIVE_STATUSES = ("pending_review", "waitlisted", "alternative_proposed")
+
 
 def get_equipment(db: Session, equipment_id: str) -> EquipmentType:
     et = db.get(EquipmentType, equipment_id)
@@ -49,10 +51,20 @@ def create_request(db: Session, data) -> BookingRequest:
             reasons.append("Requested unit does not belong to this equipment type.")
     if reasons:
         raise ValidationFailed("Booking request violates constraints", {"reasons": reasons})
+    dup = db.scalars(select(BookingRequest).where(
+        BookingRequest.requester_name == data.requester_name, BookingRequest.project_title == data.project_title,
+        BookingRequest.equipment_type_id == et.id, BookingRequest.status.in_(ACTIVE_STATUSES),
+        BookingRequest.requested_start_at < end, BookingRequest.requested_end_at > start).limit(1)).first()
+    if dup:
+        raise ValidationFailed("Duplicate active request", {"reasons": [
+            "You already have an active request for this equipment in an overlapping window."]})
+    waitlist = False
     if not av.free_units(db, et, start, end):
-        alts = find_alternatives(db, et, start, end)
-        raise SlotConflict("No unit is free in the requested window",
-                           {"alternatives": alts, "reasons": ["All operational units are booked or under maintenance in this window."]})
+        if not data.join_waitlist:
+            alts = find_alternatives(db, et, start, end)
+            raise SlotConflict("No unit is free in the requested window",
+                               {"alternatives": alts, "reasons": ["All operational units are booked or under maintenance in this window."]})
+        waitlist = True
 
     project_id = data.project_id
     if project_id and not db.get(Project, project_id):
@@ -73,15 +85,22 @@ def create_request(db: Session, data) -> BookingRequest:
         project_id=project_id, project_title=data.project_title, requester_name=data.requester_name,
         requester_department_id=data.requester_department_id, equipment_type_id=et.id,
         requested_unit_id=data.requested_unit_id, requested_start_at=start, requested_end_at=end,
-        estimated_hours=hours, purpose=data.purpose, deadline=deadline, status="pending_review",
+        estimated_hours=hours, purpose=data.purpose, deadline=deadline, status="waitlisted" if waitlist else "pending_review",
         priority_score=score, priority_factors=factors, requires_supervision=et.requires_supervision,
         created_at=now, updated_at=now)
     db.add(req)
     db.flush()
-    audit(db, "submitted", "booking_request", req.id, f"Request submitted for {et.name}", actor=data.requester_name,
-          metadata={"equipment_type_id": et.id})
-    notify(db, "request_submitted", "Booking request submitted",
-           f"{data.requester_name} requested {et.name} ({data.project_title}).", "booking_request", req.id)
+    if waitlist:
+        audit(db, "queue_joined", "booking_request", req.id, f"Joined the allocation queue for {et.name}",
+              actor=data.requester_name, metadata={"equipment_type_id": et.id, "priority_score": score})
+        notify(db, "waitlist_joined", "Joined allocation queue",
+               f"'{data.project_title}' is waitlisted for {et.name}. Joining does not reserve the equipment.",
+               "booking_request", req.id)
+    else:
+        audit(db, "submitted", "booking_request", req.id, f"Request submitted for {et.name}", actor=data.requester_name,
+              metadata={"equipment_type_id": et.id})
+        notify(db, "request_submitted", "Booking request submitted",
+               f"{data.requester_name} requested {et.name} ({data.project_title}).", "booking_request", req.id)
     db.commit()
     db.refresh(req)
     return req
@@ -128,7 +147,7 @@ def confirm_booking(db: Session, req: BookingRequest, start: datetime, end: date
 
 def cancel_request(db: Session, request_id: str) -> BookingRequest:
     r = get_request(db, request_id)
-    if r.status not in ("pending_review", "alternative_proposed", "confirmed", "approved"):
+    if r.status not in ("pending_review", "waitlisted", "alternative_proposed", "confirmed", "approved"):
         raise InvalidState(f"Request in status '{r.status}' cannot be cancelled")
     for b in r.bookings:
         if b.status == "confirmed":

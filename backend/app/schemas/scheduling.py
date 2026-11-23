@@ -68,6 +68,14 @@ class SchedulingResult(BaseModel):
     conflicts: list[Conflict] = []
     alternatives: list[Alternative] = []
     assumptions: list[str] = []
+    # additive decision-visualiser metadata
+    project_title: str | None = None
+    deadline: str | None = None
+    requested_start_at: str | None = None
+    requested_end_at: str | None = None
+    eligible_units: int = 0
+    hard_constraints_checked: list[str] = []
+    shift_minutes: int | None = None
 
 
 class Weights(BaseModel):
@@ -77,6 +85,42 @@ class Weights(BaseModel):
     preference_fit: float = 0.15
 
 
+class LockedBlock(BaseModel):
+    start_at: str
+    end_at: str
+    kind: Literal["booking", "maintenance"]
+    label: str
+
+
+class RecommendedBlock(BaseModel):
+    request_id: str | None = None
+    start_at: str
+    end_at: str
+    project_title: str | None = None
+
+
+class UnitTimeline(BaseModel):
+    unit_id: str
+    unit_name: str
+    equipment_type_id: str
+    locked: list[LockedBlock] = []
+    recommended: list[RecommendedBlock] = []
+
+
+class SolverSummary(BaseModel):
+    requests_considered: int
+    feasible_assignments: int
+    unresolved: int
+    units_considered: int
+    fixed_blocks: int
+    solve_time_ms: float
+    horizon_start: str
+    horizon_end: str
+    horizon_days: int
+    grid_minutes: int
+    solver_status: Literal["optimal", "feasible", "infeasible", "not_run"]
+
+
 class SchedulingResponse(BaseModel):
     solver: Literal["cp-sat"] = "cp-sat"
     solver_status: Literal["optimal", "feasible", "infeasible", "not_run"]
@@ -84,6 +128,8 @@ class SchedulingResponse(BaseModel):
     weights: Weights
     horizon_days: int
     results: list[SchedulingResult]
+    summary: SolverSummary | None = None
+    timeline: list[UnitTimeline] = []
 
 
 class ConflictsResponse(BaseModel):

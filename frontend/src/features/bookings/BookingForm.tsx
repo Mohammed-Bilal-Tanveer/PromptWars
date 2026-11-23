@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, Chip, Field, Input, LoadingState, ErrorState, Notice, Select, StatusChip, Textarea, buttonCls, IconAlert, IconEye, IconInfo, IconSwap } from '@/components/ui'
+import { Button, Chip, ConfirmDialog, Field, Input, LoadingState, ErrorState, Notice, Select, StatusChip, Textarea, buttonCls, IconAlert, IconEye, IconInfo, IconSwap } from '@/components/ui'
 import { useAvailability, useCreateBookingRequest, useDepartments, useEquipmentDetail } from '@/hooks/useApi'
 import { useAppStore, toast } from '@/stores/appStore'
-import { campusDate, campusDateOf, campusTimeOf, localISO, minutesToLabel } from '@/lib/format'
+import { formatRange, campusDate, campusDateOf, campusTimeOf, localISO, minutesToLabel } from '@/lib/format'
 import { ROUTES } from '@/lib/routes'
 import type { Alternative, BookingRequest } from '@/types/api'
 import { AlternativeList, apiDetails, fromMin, toMin } from './parts'
@@ -31,6 +31,7 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
   const [errs, setErrs] = useState<Errs>({})
   const [conflict, setConflict] = useState<{ message: string; alternatives: Alternative[]; reasons: string[] } | null>(null)
   const [reasons, setReasons] = useState<string[]>([])
+  const [queueOpen, setQueueOpen] = useState(false)
   const [done, setDone] = useState<BookingRequest | null>(null)
 
   useEffect(() => setEqId(equipmentId), [equipmentId])
@@ -76,14 +77,19 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
 
   function submit(ev: React.FormEvent) {
     ev.preventDefault()
-    setConflict(null)
+    send(false)
+  }
+
+  function send(joinWaitlist: boolean) {
     setReasons([])
+    if (!joinWaitlist) setConflict(null)
     const v = validate()
     setErrs(v)
-    if (Object.keys(v).length) return
+    if (Object.keys(v).length) { setQueueOpen(false); return }
     setRequester({ name: name.trim(), departmentId: dept })
     create.mutate(
       {
+        ...(joinWaitlist ? { join_waitlist: true } : {}),
         project_title: title.trim(),
         requester_name: name.trim(),
         requester_department_id: dept,
@@ -99,10 +105,13 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
       {
         onSuccess: (r) => {
           setDone(r)
-          toast.success('Booking request submitted', `Request ${r.id} is pending review.`)
+          setQueueOpen(false)
+          if (r.status === 'waitlisted') toast.success('Added to the allocation queue', `Request ${r.id} is waitlisted. Nothing is reserved.`)
+          else toast.success('Booking request submitted', `Request ${r.id} is pending review.`)
           onSubmitted?.(r.id)
         },
         onError: (err) => {
+          setQueueOpen(false)
           const x = apiDetails(err)
           if (x.status === 409 && x.code === 'SLOT_CONFLICT') setConflict({ message: x.message, alternatives: x.alternatives, reasons: x.reasons })
           else if (x.status === 400 || x.status === 422) setReasons(x.reasons.length ? x.reasons : [x.message])
@@ -114,6 +123,35 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
 
   if (eq.isLoading) return <LoadingState label="Loading equipment…" />
   if (eq.isError || !e) return <ErrorState error={eq.error} onRetry={() => eq.refetch()} />
+
+  if (done && done.status === 'waitlisted') {
+    return (
+      <div className="space-y-4" role="status" aria-live="polite">
+        <Notice tone="info" title="You joined the allocation queue">
+          This is not a reservation. {done.equipment_name} is not booked for you. LabLink will include your request in future scheduling recommendations, and a reviewer must still approve any slot.
+        </Notice>
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 rounded-xl border border-line p-4 text-sm">
+          <dt className="text-muted">Request reference</dt>
+          <dd className="break-all font-mono text-[13px]">{done.id}</dd>
+          <dt className="text-muted">Status</dt>
+          <dd><StatusChip status={done.status} /></dd>
+          <dt className="text-muted">Requested window</dt>
+          <dd className="tnum">{formatRange(done.requested_start_at, done.requested_end_at)}</dd>
+          {done.queue_position != null && (
+            <>
+              <dt className="text-muted">Estimated queue position</dt>
+              <dd><span className="font-semibold">#{done.queue_position}</span> <span className="text-xs text-muted">Current estimate. It can change when requests or availability change.</span></dd>
+            </>
+          )}
+        </dl>
+        <p className="text-sm text-muted">Next step: track or leave the queue from My requests.</p>
+        <div className="flex flex-wrap gap-2">
+          <Link to={ROUTES.requests} className={buttonCls('primary')}>My requests</Link>
+          {onCancel && <Button variant="ghost" onClick={onCancel}>Close</Button>}
+        </div>
+      </div>
+    )
+  }
 
   if (done) {
     return (
@@ -138,6 +176,7 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
 
   const freeUnits = av.data?.requested
   return (
+    <>
     <form onSubmit={submit} noValidate className={embedded ? 'space-y-4' : 'max-w-3xl space-y-4'} aria-label={`Booking request for ${e.name}`}>
       <div className="rounded-xl border border-line bg-surface2/60 p-3.5 text-sm">
         <div className="font-semibold">{e.name} <span className="font-normal text-muted">· {e.laboratory_name}</span></div>
@@ -223,10 +262,15 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
         {conflict && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950" data-testid="conflict-panel">
             <p className="flex items-center gap-2 font-semibold text-amber-900"><IconAlert size={18} className="text-amber-600" />Slot conflict</p>
+            <p className="mt-1 text-sm">Requested slot: <strong className="tnum">{formatRange(localISO(date, start), localISO(date, end))}</strong> is unavailable.</p>
             <p className="mt-1 text-sm">{conflict.message}</p>
             {conflict.reasons.length > 0 && <ul className="mt-1 list-disc pl-5 text-sm">{conflict.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
             <p className="mb-2 mt-3 text-sm font-semibold">Suggested alternatives</p>
             <AlternativeList items={conflict.alternatives} onPick={applySlot} pickLabel="Use this slot" />
+            <div className="mt-4 border-t border-amber-200 pt-3">
+              <p className="text-sm">Or keep your interest in this slot. Joining the queue does not reserve the equipment.</p>
+              <Button type="button" variant="secondary" className="mt-2" onClick={() => setQueueOpen(true)}>Join the allocation queue</Button>
+            </div>
           </div>
         )}
       </div>
@@ -236,5 +280,15 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
         <Button type="submit" loading={create.isPending}>Submit request</Button>
       </div>
     </form>
+    <ConfirmDialog
+      open={queueOpen}
+      title="Join the allocation queue?"
+      message="This workstation is fully booked for the selected time. You can choose one of the suggested alternatives or join the intelligent allocation queue. LabLink will include your request in future scheduling recommendations. Joining the queue does not automatically reserve the equipment."
+      confirmLabel="Join the queue"
+      loading={create.isPending}
+      onCancel={() => setQueueOpen(false)}
+      onConfirm={() => send(true)}
+    />
+    </>
   )
 }

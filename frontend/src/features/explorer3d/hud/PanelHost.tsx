@@ -12,6 +12,7 @@ import { SchedulingStudio } from '@/features/scheduling'
 import { ApprovalDesk } from '@/features/approvals'
 import { AnalyticsDashboard, NotificationCenter } from '@/features/analytics'
 import { AssistantPanel } from '@/features/ai-assistant'
+import { MapPanel } from './MapPanel'
 import { useExplorerStore, type PanelState, type Quality } from '../stores/explorerStore'
 import { DEPT_FALLBACK, buildingById, buildingForDept, doorOutside } from '../environments/layout'
 
@@ -21,7 +22,7 @@ const TITLES: Record<string, string> = {
   equipment: 'Equipment details', department: 'Department', lab: 'Laboratory', kiosk: 'Campus information kiosk',
   project: 'Project Lab', bookings: 'Bookings & scheduling', approvals: 'Operations & Approval Desk',
   analytics: 'Analytics', assistant: 'Assistant', notifications: 'Notifications',
-  search: 'Search equipment', settings: 'Pause & settings',
+  search: 'Search equipment', settings: 'Pause & settings', map: 'Campus map & teleport',
 }
 
 function Shell({ panel, onClose, onBack, children }: { panel: PanelState; onClose: () => void; onBack?: () => void; children: ReactNode }) {
@@ -248,6 +249,9 @@ export function PanelHost({ equipment }: { equipment: EquipmentType[] }) {
       break
     case 'search':
       body = <SearchPanel onPick={(id) => open({ kind: 'equipment', recordId: id })} />
+      break
+    case 'map':
+      body = <MapPanel />
       break
     case 'settings':
       body = <SettingsPanel onClose={close} />

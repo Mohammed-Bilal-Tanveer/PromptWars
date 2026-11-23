@@ -162,3 +162,17 @@ MaintenanceWindow { id, equipment_unit_id, unit_name, inventory_code, equipment_
 ## Backend config (env) — see README §11
 `DATABASE_URL` (empty -> `sqlite:///./lablink.db`; `postgres://` / `postgresql://` -> `postgresql+psycopg://`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_INPUT_CHARS`, `CAMPUS_TIMEZONE`, `FRONTEND_ORIGIN` (comma-separated CORS allowlist; always also allow `http://localhost:5173` & `http://127.0.0.1:5173` in dev), `DEMO_MODE`, `LOG_LEVEL`, scheduling weights `W_DEADLINE,W_WAITING,W_FAIRNESS,W_PREFERENCE`.
 On startup (in lifespan): when `DEMO_MODE=true`, run alembic upgrade (or `create_all` fallback) + idempotent seed so the hosted demo works with zero manual steps. Seed is idempotent and refreshes time-relative demo bookings only if none exist in the future.
+
+
+## Allocation queue / waitlist (added in the `improvements` branch)
+- New booking_request.status value: **`waitlisted`** (active, not confirmed). Added to the status enum and to `NotificationType` as `waitlist_joined`.
+- `POST /booking-requests` body gains optional `join_waitlist: boolean` (default `false`; existing behaviour unchanged).
+  - Hard-constraint failures (bad range, past, closed lab, duration, etc.) stay `400 VALIDATION_ERROR` — **never** waitlisted.
+  - Valid window but **no free unit**: `join_waitlist=false` -> unchanged `409 SLOT_CONFLICT` with alternatives. `join_waitlist=true` -> `201` BookingRequest with `status:"waitlisted"` (priority computed, audit event `queue_joined`, notification `waitlist_joined`), no booking created.
+  - A unit is free: normal `pending_review` request (join_waitlist ignored).
+  - Duplicate active request (same requester_name + project_title + equipment + overlapping window, status pending_review/waitlisted/alternative_proposed) -> `400 VALIDATION_ERROR` with reason "You already have an active request for this equipment in an overlapping window."
+- Transitions from `waitlisted`: approve (transactional re-check; 409 SLOT_CONFLICT if still no unit), reject (reason required), propose alternative -> `alternative_proposed`, cancel/leave queue (`POST /booking-requests/{id}/cancel`) -> `cancelled`. Cancelled/rejected/expired are excluded from scheduling.
+- `BookingRequest` detail gains `queue_position: number | null` (**estimated**, only for waitlisted: rank among waitlisted requests for the same equipment type by priority_score desc, then created_at asc; may change).
+- `GET /booking-requests?status=waitlisted` works. `GET /approvals/queue` default statuses become `pending_review,waitlisted,alternative_proposed`.
+- Scheduling (`POST /scheduling/recommendations`, `GET /scheduling/conflicts`) treats `waitlisted` like `pending_review`. Recommendation runs never create bookings or change request status.
+- `GET /analytics/overview` gains `waitlisted_count`.

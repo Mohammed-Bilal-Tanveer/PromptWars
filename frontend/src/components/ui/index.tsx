@@ -2,7 +2,7 @@ import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type Inpu
 import { ApiError } from '@/services/apiClient'
 import { humanize } from '@/lib/format'
 import {
-  IconAlert, IconCheck, IconCheckCircle, IconClock, IconDot, IconInbox, IconInfo, IconMinus, IconSwap, IconWrench, IconX, IconXCircle,
+  IconAlert, IconCheck, IconCheckCircle, IconClock, IconDot, IconInbox, IconInfo, IconListChecks, IconMinus, IconSwap, IconWrench, IconX, IconXCircle,
 } from './icons'
 
 export * from './icons'
@@ -120,6 +120,7 @@ const STATUS_TONE: Record<string, { tone: Tone; icon: ReactNode; label?: string 
   operational: { tone: 'ok', icon: DOT, label: 'Operational' },
   unavailable: { tone: 'danger', icon: <IconXCircle {...I} />, label: 'Unavailable' },
   pending_review: { tone: 'warn', icon: <IconClock {...I} />, label: 'Pending review' },
+  waitlisted: { tone: 'info', icon: <IconListChecks {...I} />, label: 'Waitlisted' },
   approved: { tone: 'ok', icon: <IconCheck {...I} /> },
   confirmed: { tone: 'ok', icon: <IconCheck {...I} />, label: 'Confirmed' },
   rejected: { tone: 'danger', icon: <IconX {...I} />, label: 'Rejected' },

@@ -4,14 +4,20 @@ import { ApiError } from '@/services/apiClient'
 import { usePublicConfig } from '@/hooks/useApi'
 import { setCampusTimezone } from '@/lib/format'
 import { Toasts } from '@/components/feedback/Toasts'
+import { ConnectionManager } from '@/features/connection/ConnectionManager'
+import { isGatewayStatus } from '@/features/connection/connectionStore'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 10_000,
       refetchOnWindowFocus: true,
-      // Retry network failures (Render cold start) but never 4xx.
-      retry: (count, err) => (err instanceof ApiError && err.status >= 400 && err.status < 500 ? false : count < 3),
+      // Never retry 4xx. Network/gateway failures are handled by the connection monitor
+      // (single-flight health polling, then a refetch), so queries must not hammer the API.
+      retry: (count, err) => {
+        if (err instanceof ApiError && ((err.status >= 400 && err.status < 500) || err.status === 0 || isGatewayStatus(err.status))) return false
+        return count < 3
+      },
       retryDelay: (n) => Math.min(1000 * 2 ** n, 6000),
     },
   },
@@ -31,6 +37,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ConfigBootstrap>
         {children}
         <Toasts />
+        <ConnectionManager />
       </ConfigBootstrap>
     </QueryClientProvider>
   )
