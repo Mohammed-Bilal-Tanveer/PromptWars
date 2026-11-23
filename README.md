@@ -49,10 +49,11 @@ Optional: copy `.env.example` → `backend/.env` and set `OPENAI_API_KEY` (never
 
 ## Tests & checks
 ```powershell
-cd backend;  .venv\Scripts\activate; ruff check .; pytest -q      # 102 tests
-cd frontend; npm run lint; npx vitest run; npm run build         # 58 tests
+cd backend;  .venv\Scripts\activate; ruff check .; pytest -q      # 103 tests
+cd frontend; npm run lint; npx vitest run; npm run build         # 70 tests
 ```
-Not covered: no Playwright/e2e, no real OpenAI call in tests, no automated PostgreSQL run (tests use SQLite), no CI pipeline, no assistive-technology accessibility audit.
+Accessibility: a source-level audit was done and its findings fixed (modal focus trap and focus return, 3:1 control borders, labelled form errors, 44 px touch targets, landmarks and page titles, keyboard-operable tabs).
+Not covered: no Playwright/e2e, no real OpenAI call in tests, no automated PostgreSQL run (tests use SQLite), no CI pipeline, no screen-reader or real-phone touch testing.
 
 ## Deployment
 Both services are deployed from their own sub-folder (set the **Root Directory** in each dashboard).
@@ -77,4 +78,4 @@ With `DEMO_MODE=true` the app runs migrations and the idempotent seed on start-u
 Landing → "Start Guided Demo" (or Professional Mode) → Project Lab → "Use sample project" → analyse → matched equipment → open item → pick a window → request (or join the queue for the fully booked GPU workstation tomorrow 14:00–16:00) → Demo Approval Desk → approve/reject/propose alternative → My Requests → Scheduling Studio (decision visualiser) → 3D Campus (Menu → Map & Teleport) → Analytics.
 
 ## Assumptions & limitations
-1. All campus data is fictional sample data. 2. No authentication/roles by design; the Demo Approval Desk is a public simulation, not for real approvals. 3. Requester names/departments are unverified display metadata. 4. Scheduling output is a recommendation; joining the queue reserves nothing. 5. Safety/supervision flags are demo metadata. 6. The 3D campus is a low-poly environment using procedural geometry plus a few CC0 Kenney models (see `frontend/public/assets/ASSET_CREDITS.md`). 7. Render free/starter plans may cold-start; the UI shows the wake-up banner and retry states. 8. Enter-key / joystick / sprint behaviour in 3D is covered by unit tests only and should be checked in a real browser.
+1. All campus data is fictional sample data. 2. No authentication/roles by design; the Demo Approval Desk is a public simulation, not for real approvals. 3. Requester names/departments are unverified display metadata. 4. Scheduling output is a recommendation; joining the queue reserves nothing. 5. Safety/supervision flags are demo metadata. 6. The 3D campus is a low-poly environment using procedural geometry plus a few CC0 Kenney models (see `frontend/public/assets/ASSET_CREDITS.md`). 7. Render free/starter plans may cold-start; the UI shows the wake-up banner and retry states. 8. Enter-key, joystick and sprint behaviour in 3D is covered by unit tests and was checked in a desktop browser with a phone-sized viewport and synthetic pointer events; it has not been tried on a physical touch device. Idle equipment animations run on the "high" graphics quality setting.
