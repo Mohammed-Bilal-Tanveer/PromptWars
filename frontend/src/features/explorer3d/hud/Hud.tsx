@@ -17,8 +17,8 @@ const btn = `inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-s
 
 export function ExitButton() {
   return (
-    <Link to={ROUTES.overview} className={btn} aria-label="Exit 3D and skip to dashboard">
-      <IconArrowLeft size={18} className="text-muted" /> Exit 3D<span className="max-sm:hidden"> · Go to dashboard</span>
+    <Link to={ROUTES.overview} className={btn} aria-label="Exit 3D and skip to dashboard (Professional Mode)">
+      <IconArrowLeft size={18} className="text-muted" /> Exit 3D<span className="max-sm:hidden"> · Professional Mode</span>
     </Link>
   )
 }
@@ -89,6 +89,8 @@ export function Objective() {
     return () => clearInterval(t)
   }, [wp])
   const setWp = useExplorerStore((s) => s.setWaypoint)
+  const find = useExplorerStore((s) => s.find)
+  if (find) return null
   return (
     <div className={cx('max-w-sm rounded-xl px-3 py-2 text-xs sm:text-sm', surface)} aria-live="polite">
       <span className="font-semibold">Objective: </span>

@@ -20,7 +20,7 @@ def normalise_database_url(url: str | None) -> str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True, env_ignore_empty=True)
 
     app_env: str = "development"
     app_name: str = "LabLink API"
@@ -34,12 +34,19 @@ class Settings(BaseSettings):
     campus_timezone: str = "Asia/Kolkata"
     frontend_origin: str = "http://localhost:5173"
     demo_mode: bool = True
+    # Explicit opt-in ONLY (default off in every environment, so a hosted deployment that forgets APP_ENV is still safe).
+    # Set DEMO_RESET_ENABLED=true locally to use the 'Reset demo scenario' button. Also requires demo_mode.
+    demo_reset_enabled: bool = False
     log_level: str = "INFO"
     w_deadline: float = 0.40
     w_waiting: float = 0.25
     w_fairness: float = 0.20
     w_preference: float = 0.15
     solver_time_limit_seconds: float = 5.0
+
+    @property
+    def demo_reset_active(self) -> bool:
+        return bool(self.demo_reset_enabled) and self.demo_mode
 
     @property
     def resolved_database_url(self) -> str:

@@ -155,7 +155,7 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
     } else if (autoWalk.target && !paused) {
       const wp = autoWalk.path[0]
       autoWalk.age += dt
-      if (!wp || autoWalk.age > 15 || autoWalk.stuck > 1.2) {
+      if (!wp || autoWalk.age > 60 || autoWalk.stuck > 1.2) {
         cancelWalk()
         playerState.speed = 0
       } else {

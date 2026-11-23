@@ -1,7 +1,7 @@
 import { Component, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '@/lib/routes'
-import { buttonCls, IconCube, IconMapPin } from '@/components/ui'
+import { Button, buttonCls, IconCube, IconMapPin } from '@/components/ui'
 import { useAppStore } from '@/stores/appStore'
 import { useEquipmentList } from '@/hooks/useApi'
 import { Loader } from '@react-three/drei'
@@ -11,6 +11,7 @@ import { CANVAS_WRAP_ID, PanelHost } from './hud/PanelHost'
 import { input, resetPlayer } from './character/playerState'
 import { clearInteractables } from './interactions/registry'
 import { interactNearest, useExplorerStore } from './stores/explorerStore'
+import { FindGuide, useFindDriver } from './hud/FindGuide'
 
 export function detectWebGL(): boolean {
   try {
@@ -21,16 +22,19 @@ export function detectWebGL(): boolean {
   }
 }
 
-export function WebGLFallback({ reason }: { reason: string }) {
+export function WebGLFallback({ reason, onRetry }: { reason: string; onRetry?: () => void }) {
   return (
     <div role="alert" className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 p-8 text-center text-fg">
       <span className="grid h-12 w-12 place-items-center rounded-full bg-surface2 text-subtle" aria-hidden><IconCube size={24} /></span>
       <h1 className="text-2xl font-semibold tracking-tight">3D Campus is not available</h1>
       <p className="text-muted">{reason}</p>
       <p className="text-muted">Everything in 3D mode is also available in Professional Mode.</p>
-      <Link to={ROUTES.overview} className={buttonCls('primary', 'lg')}>
-        Return to Professional Mode
-      </Link>
+      <div className="flex flex-wrap justify-center gap-3">
+        {onRetry && <Button size="lg" variant="secondary" onClick={onRetry}>Retry 3D</Button>}
+        <Link to={ROUTES.overview} className={buttonCls('primary', 'lg')}>
+          Return to Professional Mode
+        </Link>
+      </div>
     </div>
   )
 }
@@ -47,11 +51,14 @@ class SceneBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 export default function Explorer3DPage() {
   const [webgl] = useState(() => detectWebGL())
+  const [attempt, setAttempt] = useState(0)
+  const [lost, setLost] = useState(false)
   if (!webgl) return <WebGLFallback reason="Your browser or device does not support WebGL, which the 3D campus needs." />
-  return <Explorer />
+  if (lost) return <WebGLFallback reason="The graphics context was lost (the browser or GPU reset it)." onRetry={() => { setLost(false); setAttempt((n) => n + 1) }} />
+  return <Explorer key={attempt} onContextLost={() => setLost(true)} />
 }
 
-function Explorer() {
+function Explorer({ onContextLost }: { onContextLost: () => void }) {
   const eqQuery = useEquipmentList({ page_size: 100 })
   // refetch cadence for live badges (the shared hook has no interval option, so tick an invalidate-free refetch)
   const refetch = eqQuery.refetch
@@ -64,14 +71,23 @@ function Explorer() {
   const panel = useExplorerStore((s) => s.panel)
   const fade = useExplorerStore((s) => s.fade)
   const wrap = useRef<HTMLDivElement>(null)
+  useFindDriver(equipment, eqQuery.isSuccess, eqQuery.isError)
   const drag = useRef<{ id: number; x: number } | null>(null)
 
   useEffect(() => {
     resetPlayer()
     clearInteractables()
     wrap.current?.focus()
-    return () => { input.reset(); clearInteractables(); useExplorerStore.setState({ panel: null, prevPanel: null, nearest: null, waypoint: null, menuOpen: false, sprint: false, fade: false }) }
+    return () => { input.reset(); clearInteractables(); useExplorerStore.setState({ panel: null, prevPanel: null, nearest: null, waypoint: null, find: null, menuOpen: false, sprint: false, fade: false }) }
   }, [])
+
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const lost = (e: Event) => { e.preventDefault(); input.reset(); onContextLost() }
+    el.addEventListener('webglcontextlost', lost, true) // non-bubbling event, so listen in the capture phase
+    return () => el.removeEventListener('webglcontextlost', lost, true)
+  }, [onContextLost])
 
   useEffect(() => {
     const typing = (t: EventTarget | null) => {
@@ -105,7 +121,9 @@ function Explorer() {
       input.keys.delete(e.key.toLowerCase())
       if (e.key === 'Shift') input.keys.delete('shift')
     }
-    const blur = () => input.keys.clear()
+    const blur = () => { input.keys.clear(); input.joy.x = 0; input.joy.y = 0 }
+    const vis = () => { if (document.hidden) blur() }
+    document.addEventListener('visibilitychange', vis)
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('blur', blur)
@@ -113,10 +131,11 @@ function Explorer() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('blur', blur)
+      document.removeEventListener('visibilitychange', vis)
     }
   }, [])
 
-  useEffect(() => { if (panel) input.keys.clear() }, [panel])
+  useEffect(() => { if (panel) { input.keys.clear(); input.joy.x = 0; input.joy.y = 0 } }, [panel])
 
   return (
     <div className="relative h-[calc(100vh-0px)] min-h-[480px] w-full overflow-hidden bg-[#dde7ee]">
@@ -151,6 +170,7 @@ function Explorer() {
           <ExitButton />
           <LocationLabel />
           <Objective />
+          <FindGuide />
         </div>
         <div className="pointer-events-auto absolute right-3 top-3 flex flex-col items-end gap-2">
           <MenuButton />

@@ -8,6 +8,7 @@ from app.api.routes import (
     availability,
     bookings,
     campus,
+    demo,
     departments,
     equipment,
     health,
@@ -34,5 +35,6 @@ for module in (
     analytics,
     notifications,
     maintenance,
+    demo,
 ):
     api_router.include_router(module.router)

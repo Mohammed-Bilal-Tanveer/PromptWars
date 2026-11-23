@@ -3,7 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import { Billboard, Html, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import type { EquipmentType } from '@/types/api'
-import { useExplorerStore } from '../stores/explorerStore'
+import { resolveQuality, useExplorerStore } from '../stores/explorerStore'
+import { playerState } from '../character/playerState'
+import { HeroOrFallback } from './HeroEquipment'
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 12)
@@ -186,21 +188,38 @@ export function statusBadge(e: Pick<EquipmentType, 'status' | 'quantity_availabl
   return { icon: '▲', text: 'Maintenance', bg: '#B91C1C', fg: '#ffffff' }
 }
 
+/** Matches the equipment interaction radius registered in Scene.tsx. */
+const PROXIMITY_RADIUS = 2.4
+
 export function EquipmentAnchor({ x, z, equipment, highlighted, showBadge }: {
   x: number; z: number; equipment: EquipmentType; highlighted: boolean; showBadge: boolean
 }) {
   const ring = useRef<THREE.Mesh>(null)
+  const prox = useRef<THREE.Mesh>(null)
+  const nextCheck = useRef(0)
   const kind = useMemo(() => modelKind(equipment), [equipment])
+  const reduce = useExplorerStore((st) => st.reduceMotion)
+  const high = useExplorerStore((st) => resolveQuality(st.quality)) === 'high'
   useFrame(({ clock }) => {
-    if (!ring.current) return
-    const reduce = useExplorerStore.getState().reduceMotion
-    const s = reduce ? 1.1 : 1 + 0.18 * Math.sin(clock.elapsedTime * 4)
-    ring.current.scale.set(s, s, s)
+    const t = clock.elapsedTime
+    if (ring.current) {
+      const s = useExplorerStore.getState().reduceMotion ? 1.1 : 1 + 0.18 * Math.sin(t * 4)
+      ring.current.scale.set(s, s, s)
+    }
+    if (prox.current && t >= nextCheck.current) {
+      nextCheck.current = t + 0.1
+      const dx = playerState.x - x, dz = playerState.z - z
+      prox.current.visible = dx * dx + dz * dz <= PROXIMITY_RADIUS * PROXIMITY_RADIUS
+    }
   })
   const b = statusBadge(equipment)
   return (
     <group position={[x, 0, z]}>
-      <Model kind={kind} />
+      <HeroOrFallback equipmentId={equipment.id} animate={high && !reduce} fallback={<Model kind={kind} />} />
+      <mesh ref={prox} visible={false} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[PROXIMITY_RADIUS - 0.2, PROXIMITY_RADIUS - 0.08, 48]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.8} depthWrite={false} />
+      </mesh>
       {highlighted && (
         <mesh ref={ring} position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[1.05, 1.2, 40]} />
@@ -208,7 +227,7 @@ export function EquipmentAnchor({ x, z, equipment, highlighted, showBadge }: {
         </mesh>
       )}
       {showBadge && (
-        <Html position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, 2.6, 0]} center distanceFactor={9} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
           <div
             style={{ background: b.bg, color: b.fg, border: highlighted ? '2px solid #2563EB' : '1px solid rgba(255,255,255,.35)', borderRadius: 8, padding: '3px 9px', fontSize: 12, lineHeight: 1.35, whiteSpace: 'nowrap', textAlign: 'center', fontFamily: 'system-ui, "Segoe UI", sans-serif', boxShadow: '0 1px 3px rgba(16,24,40,.12)' }}
           >

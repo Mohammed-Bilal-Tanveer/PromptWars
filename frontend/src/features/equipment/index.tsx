@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   Button, Card, Chip, ConfirmDialog, EmptyState, ErrorState, Field, Input, LoadingState, Modal, Notice, PageHeader,
-  QueryBoundary, Select, StatusChip, errorMessage, IconArrowLeft, IconArrowRight, IconEye, IconMapPin, IconX,
+  QueryBoundary, Select, SkeletonCards, StatusChip, errorMessage, IconArrowLeft, IconArrowRight, IconEye, IconMapPin, IconX,
 } from '@/components/ui'
 import {
   useAvailability, useDepartments, useEquipmentCategories, useEquipmentDetail, useEquipmentList, useLaboratories, useSetUnitStatus,
@@ -17,6 +17,12 @@ import type { EquipmentQuery, EquipmentStatus, EquipmentType, UnitStatus } from 
 const PAGE_SIZE = 12
 const cap = (c: string) => c.replace(/_/g, ' ')
 
+/** Availability chip status: partially booked when only some units are free. */
+export function availabilityStatus(e: { status: string; quantity_available: number; quantity_total: number }): string {
+  if (e.status === 'available' && e.quantity_available > 0 && e.quantity_available < e.quantity_total) return 'partially_booked'
+  return e.status
+}
+
 function EquipmentCard({ e }: { e: EquipmentType }) {
   return (
     <Card as="article" className="flex h-full flex-col transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-raised" aria-label={e.name}>
@@ -24,7 +30,7 @@ function EquipmentCard({ e }: { e: EquipmentType }) {
         <h3 className="min-w-0 break-words font-semibold leading-snug">
           <Link to={ROUTES.equipment(e.id)} className="hover:text-brand hover:underline">{e.name}</Link>
         </h3>
-        <StatusChip status={e.status} />
+        <StatusChip status={availabilityStatus(e)} />
       </div>
       <p className="mt-1 text-xs font-medium uppercase tracking-wide text-subtle">{e.category}</p>
       <p className="mt-3 text-sm"><span className="tnum font-semibold">{e.quantity_available}</span> of <span className="tnum">{e.quantity_total}</span> units free</p>
@@ -152,11 +158,11 @@ export function EquipmentCatalogue() {
 
       <div aria-live="polite">
         {list.isLoading ? (
-          <LoadingState label="Searching equipment…" />
+          <div role="status" aria-busy="true"><span className="sr-only">Searching equipment…</span><SkeletonCards count={6} /></div>
         ) : list.isError ? (
           <ErrorState error={list.error} onRetry={() => list.refetch()} />
         ) : list.data && list.data.items.length === 0 ? (
-          <EmptyState title="No equipment matches your filters" hint="Try a broader search or clear the filters." action={<Button variant="secondary" onClick={reset}>Clear filters</Button>} />
+          <EmptyState title="No equipment matches your filters" hint="Try a broader search or clear the filters, or ask the Assistant to find a match." action={<div className="flex flex-wrap justify-center gap-2"><Button variant="secondary" onClick={reset}>Clear filters</Button><Link to={ROUTES.assistant} className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-brand hover:underline">Ask the Assistant</Link></div>} />
         ) : (
           list.data && (
             <>
@@ -331,7 +337,7 @@ export function EquipmentDetailPanel({ equipmentId, onBook, onClose, embedded }:
   const book = () => (onBook ? onBook(equipmentId) : setBookOpen(true))
 
   return (
-    <QueryBoundary query={q} loadingLabel="Loading equipment…">
+    <QueryBoundary query={q} loadingLabel="Loading equipment…" skeleton={<SkeletonCards count={3} />}>
       {(e) => (
         <div className="space-y-4">
           {embedded ? (
@@ -348,7 +354,7 @@ export function EquipmentDetailPanel({ equipmentId, onBook, onClose, embedded }:
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <StatusChip status={e.status} />
+            <StatusChip status={availabilityStatus(e)} />
             <Chip tone="avail">{e.quantity_available}/{e.quantity_total} units free</Chip>
             {e.requires_supervision && <Chip tone="warn" icon={<IconEye size={13} strokeWidth={2} />}>Supervision required</Chip>}
             <Chip>Utilisation {pct(e.utilisation_pct)}</Chip>

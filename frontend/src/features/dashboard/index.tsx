@@ -6,6 +6,8 @@ import {
 import { useAnalyticsOverview, useBookingRequests, useDepartments } from '@/hooks/useApi'
 import { formatRange, pct } from '@/lib/format'
 import { ROUTES } from '@/lib/routes'
+import { DemoEntryActions } from '@/features/landing/DemoEntryActions'
+import { DemoResetButton } from '@/features/landing/DemoResetButton'
 
 export function Overview() {
   const overview = useAnalyticsOverview()
@@ -39,6 +41,10 @@ export function Overview() {
           </section>
         )
       )}
+
+      <section aria-label="Guided demo">
+        <DemoEntryActions startTo={ROUTES.overview} />
+      </section>
 
       <section aria-label="Quick actions">
         <h2 className="mb-3 text-base font-semibold sm:text-[17px]">Quick actions</h2>
@@ -111,6 +117,10 @@ export function Overview() {
           </QueryBoundary>
         </Card>
       </div>
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-xs text-muted">
+        <span>Fictional sample data. Requester and reviewer identities are simulated.</span>
+        <DemoResetButton />
+      </footer>
     </div>
   )
 }

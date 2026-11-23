@@ -3,7 +3,9 @@ import { CHARACTERS } from '../scene/kenney'
 import type { EquipmentType } from '@/types/api'
 import { useAppStore } from '@/stores/appStore'
 import { useDepartments, useEquipmentList } from '@/hooks/useApi'
-import { Button, Chip, Input, Select, StatusChip, Spinner, cx, IconArrowLeft, IconMapPin, IconX } from '@/components/ui'
+import { Link } from 'react-router-dom'
+import { ROUTES } from '@/lib/routes'
+import { Button, Chip, Input, Select, StatusChip, Spinner, cx, IconArrowLeft, IconExternal, IconMapPin, IconX } from '@/components/ui'
 import { EquipmentDetailPanel } from '@/features/equipment'
 import { ProjectLab } from '@/features/projects'
 import { DepartmentPanel, LabPanel } from '@/features/campus'
@@ -213,7 +215,14 @@ export function PanelHost({ equipment }: { equipment: EquipmentType[] }) {
   let body: ReactNode = null
   switch (panel.kind) {
     case 'equipment':
-      body = <EquipmentDetailPanel equipmentId={panel.recordId!} embedded onBook={book} onClose={close} />
+      body = (
+        <div className="space-y-3">
+          <Link to={ROUTES.equipment(panel.recordId!)} className="link inline-flex min-h-11 items-center gap-1.5 text-sm font-medium">
+            <IconExternal size={16} /> Open in Professional Mode
+          </Link>
+          <EquipmentDetailPanel equipmentId={panel.recordId!} embedded onBook={book} onClose={close} />
+        </div>
+      )
       break
     case 'department':
       body = <DepartmentPanel departmentId={panel.recordId!} embedded onOpenLab={(id) => open({ kind: 'lab', recordId: id })} />
@@ -225,7 +234,7 @@ export function PanelHost({ equipment }: { equipment: EquipmentType[] }) {
       body = <KioskPanel onClose={close} openDept={(id) => open({ kind: 'department', recordId: id })} />
       break
     case 'project':
-      body = <ProjectLab embedded onViewMatch={viewMatch} onBook={book} />
+      body = <ProjectLab embedded onViewMatch={viewMatch} onBook={book} onFind={() => close()} />
       break
     case 'bookings':
       body = <BookingHub equipment={equipment} initial={panel} />

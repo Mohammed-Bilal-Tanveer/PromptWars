@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, Select, StatusChip, Textarea, cx,
+  Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, Select, SkeletonRows, StatusChip, Textarea, cx,
   IconAlert, IconCheckSquare, IconEye,
 } from '@/components/ui'
 import { useApprovalQueue, useApprove, useBookingRequest, useDepartments, useEquipmentList, useProposeAlternative, useReject } from '@/hooks/useApi'
@@ -31,7 +31,7 @@ export function ApprovalDesk({ embedded }: { embedded?: boolean }) {
 
   return (
     <div className="space-y-5">
-      {!embedded && <PageHeader title="Demo Approval Desk" subtitle="Review booking requests: approve, reject with a reason, or propose another slot." />}
+      {!embedded && <PageHeader accent="slate" icon={<IconCheckSquare size={20} />} title="Demo Approval Desk" subtitle="Review booking requests: approve, reject with a reason, or propose another slot." />}
       <Notice tone="warn" title={embedded ? 'Demo Approval Desk' : 'Demo only'}>
         Demo Approval Desk — simulated reviewer workflow, public, no login; not for real institutional approvals.
       </Notice>
@@ -74,7 +74,7 @@ export function ApprovalDesk({ embedded }: { embedded?: boolean }) {
       </Card>
 
       <div aria-live="polite">
-        <QueryBoundary query={queue} loadingLabel="Loading approval queue…">
+        <QueryBoundary query={queue} loadingLabel="Loading approval queue…" skeleton={<SkeletonRows count={4} />}>
           {(p) =>
             p.items.length === 0 ? (
               <EmptyState icon={<IconCheckSquare size={22} />} title="The queue is empty" hint="No requests match these filters." />

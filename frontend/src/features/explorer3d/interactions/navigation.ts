@@ -60,6 +60,11 @@ function detour(from: Pt, to: Pt): Pt[] {
   return []
 }
 
+/** Centre-aisle point level with the destination, so the last leg runs along a clear row between benches. */
+function aisle(b: BuildingDef, dest: Pt): Pt[] {
+  return Math.abs(dest.x - b.x) > 2 ? [{ x: b.x, z: dest.z }] : []
+}
+
 /** Waypoints (excluding the start) from `from` to `to`, routing through doors and around buildings. */
 export function planPath(from: Pt, to: Pt): Pt[] {
   const clamp = (v: number) => Math.max(-CAMPUS_BOUND + 0.5, Math.min(CAMPUS_BOUND - 0.5, v))
@@ -76,7 +81,10 @@ export function planPath(from: Pt, to: Pt): Pt[] {
   if (toB && toB !== fromB) {
     const out = doorOutside(toB, 2)
     path.push(...detour(cur, out), out, doorPos(toB), { x: toB.x, z: toB.z + toB.facing * (toB.d / 2 - 1.2) })
-    if (Math.hypot(dest.x - toB.x, dest.z - (toB.z + toB.facing * (toB.d / 2 - 1.2))) > 0.6) path.push(dest)
+    if (Math.hypot(dest.x - toB.x, dest.z - (toB.z + toB.facing * (toB.d / 2 - 1.2))) > 0.6) path.push(...aisle(toB, dest), dest)
+  } else if (toB) {
+    // already inside the target building: use the centre aisle so benches are not crossed
+    path.push(...aisle(toB, dest), dest)
   } else {
     path.push(...detour(cur, dest), dest)
   }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { renderWithProviders } from '@/test/utils'
 import { useExplorerStore } from '../stores/explorerStore'
 import { input, playerState } from '../character/playerState'
@@ -63,6 +63,44 @@ describe('Explorer3DPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'CS Building' }))
       expect(screen.getByRole('button', { name: 'Walk there' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Teleport' })).toBeInTheDocument()
+    })
+
+    it('Enter and E both interact; neither fires while a panel is open', () => {
+      renderWithProviders(<Explorer3DPage />)
+      const near = { id: 'k', type: 'kiosk' as const, position: { x: 0, z: 0 }, radius: 2, label: 'Kiosk', prompt: 'Press E to use' }
+      useExplorerStore.setState({ nearest: near })
+      fireEvent.keyDown(window, { key: 'e' })
+      expect(useExplorerStore.getState().panel?.kind).toBe('kiosk')
+      useExplorerStore.setState({ panel: null })
+      fireEvent.keyDown(window, { key: 'Enter' })
+      expect(useExplorerStore.getState().panel?.kind).toBe('kiosk')
+      useExplorerStore.setState({ nearest: null, panel: null })
+    })
+
+    it('map: select a building then Teleport moves the player to the door', () => {
+      useExplorerStore.setState({ reduceMotion: true })
+      renderWithProviders(<Explorer3DPage />)
+      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Map & Teleport' }))
+      fireEvent.click(screen.getByRole('button', { name: 'ECE Building' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Teleport' }))
+      const d = DESTINATIONS.find((x) => x.id === 'EC-B')!
+      expect(playerState.x).toBeCloseTo(d.stand.x)
+      expect(useExplorerStore.getState().panel).toBeNull()
+    })
+
+    it('resource network tab shows an empty state with a Project Lab link when there is no analysis', () => {
+      renderWithProviders(<Explorer3DPage />)
+      act(() => useExplorerStore.getState().openPanel({ kind: 'map' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Resource network' }))
+      expect(screen.getByText(/no project analysis yet/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /open project lab/i }))
+      expect(useExplorerStore.getState().panel?.kind).toBe('project')
+    })
+
+    it('shows a Professional Mode label in the header', () => {
+      renderWithProviders(<Explorer3DPage />)
+      expect(screen.getByRole('link', { name: /exit 3d and skip to dashboard/i })).toHaveTextContent(/professional mode/i)
     })
 
     it('sprint toggle sets run input on touch layouts', () => {

@@ -102,7 +102,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
 
   return (
     <div className="space-y-5">
-      {!embedded && <PageHeader title="Scheduling Studio" subtitle="Spot conflicts, then let the solver suggest fair slots for pending requests or a new booking." />}
+      {!embedded && <PageHeader accent="amber" icon={<IconSliders size={20} />} title="Scheduling Studio" subtitle="Spot conflicts, then let the solver suggest fair slots for pending requests or a new booking." />}
       <Notice tone="info" title="Recommendations only">
         The solver suggests slots; nothing is booked or approved automatically. Use the booking form or approval desk to act on a suggestion.
       </Notice>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  Button, Card, Chip, EmptyState, ErrorState, LoadingState, Notice, PageHeader, QueryBoundary, Stat, cx,
+  Button, Card, Chip, EmptyState, ErrorState, LoadingState, Notice, PageHeader, QueryBoundary, Skeleton, Stat, cx, IconChart,
   IconAlert, IconBell, IconCalendar, IconCheck, IconClock, IconCpu, IconSwap, IconWrench, IconX, IconMinus, IconCheckCircle, IconLayers,
 } from '@/components/ui'
 import {
@@ -51,8 +51,8 @@ export function AnalyticsDashboard({ embedded: _embedded }: { embedded?: boolean
 
   return (
     <div className="space-y-6">
-      {!_embedded && <PageHeader title="Resource analytics" subtitle="Utilisation, demand and review activity across departments." />}
-      <QueryBoundary query={ov} loadingLabel="Loading overview…">
+      {!_embedded && <PageHeader accent="teal" icon={<IconChart size={20} />} title="Resource analytics" subtitle="Utilisation, demand and review activity across departments." />}
+      <QueryBoundary query={ov} loadingLabel="Loading overview…" skeleton={<div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <div key={i} className="rounded-2xl border border-line bg-surface p-4"><Skeleton className="h-3 w-1/2" /><Skeleton className="mt-3 h-7 w-1/3" /></div>)}</div>}>
         {(o) => (
           <>
             <Notice tone="info" title={o.data_label || 'Sample campus data'}>Demonstration analytics computed from sample campus data.</Notice>

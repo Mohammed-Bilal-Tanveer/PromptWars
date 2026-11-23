@@ -3,8 +3,23 @@ import { BUILDINGS, CAMPUS_BOUND } from '../environments/layout'
 import { playerState } from '../character/playerState'
 import { DESTINATIONS, teleportToDestination, walkToDestination } from '../interactions/navigation'
 import { Button, cx, IconMapPin } from '@/components/ui'
+import { NetworkView } from './NetworkView'
 
 export function MapPanel() {
+  const [tab, setTab] = useState<'map' | 'network'>('map')
+  return (
+    <div className="space-y-4">
+      <div role="tablist" aria-label="Map views" className="inline-flex gap-1 rounded-lg bg-surface2 p-1">
+        {([['map', 'Map & Teleport'], ['network', 'Resource network']] as const).map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={cx('min-h-10 rounded-md px-3 text-sm font-medium transition-colors', tab === k ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg')}>{l}</button>
+        ))}
+      </div>
+      {tab === 'map' ? <CampusMap /> : <NetworkView />}
+    </div>
+  )
+}
+
+function CampusMap() {
   const [sel, setSel] = useState<string | null>(null)
   const [p, setP] = useState({ x: playerState.x, z: playerState.z, h: playerState.heading })
   useEffect(() => {

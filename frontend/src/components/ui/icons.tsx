@@ -79,3 +79,8 @@ export const IconDot = make('Dot', <circle cx="12" cy="12" r="3.5" fill="current
 export const IconLightbulb = make('Lightbulb', <><path d="M9 17.5h6M10 20.5h4" /><path d="M8.5 14.5a6 6 0 1 1 7 0c-.6.5-1 1.2-1 2v1h-5v-1c0-.8-.4-1.5-1-2Z" /></>)
 export const IconSettings = make('Settings', <><circle cx="12" cy="12" r="2.8" /><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z" /></>)
 export const IconHelp = make('Help', <><circle cx="12" cy="12" r="8.5" /><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.9c0 1.6-2.2 2-2.2 3.4M12 16.8h.01" /></>)
+export const IconHourglass = make('Hourglass', <><path d="M6.5 3.5h11M6.5 20.5h11" /><path d="M7.5 3.5c0 4 4.5 5.5 4.5 8.5S7.5 16.5 7.5 20.5M16.5 3.5c0 4-4.5 5.5-4.5 8.5s4.5 4.5 4.5 8.5" /></>)
+export const IconSparkles = make('Sparkles', <><path d="M10 4.5 11.8 9.2 16.5 11 11.8 12.8 10 17.5 8.2 12.8 3.5 11 8.2 9.2 10 4.5Z" /><path d="M18 3.5v3M16.5 5h3M18 16.5v4M16 18.5h4" /></>)
+export const IconCalendarBan = make('CalendarBan', <><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /><path d="m9.5 12.5 5 5M14.5 12.5l-5 5" /></>)
+export const IconQueue = make('Queue', <><circle cx="6" cy="8" r="2" /><circle cx="6" cy="16" r="2" /><path d="M11 8h9M11 16h9M11 12h6" /></>)
+export const IconWifi = make('Wifi', <><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 12.8a8 8 0 0 1 11 0M9.4 16a4 4 0 0 1 5.2 0" /><path d="M12 19.2h.01" /></>)

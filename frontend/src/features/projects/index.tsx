@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Card, Chip, Field, Input, Modal, Notice, PageHeader, ProgressBar, Select, StatusChip, Textarea, errorMessage, cx,
-  IconAlert, IconClock, IconDot, IconPlus, IconX,
+  IconAlert, IconClock, IconDot, IconMapPin, IconPlus, IconX,
 } from '@/components/ui'
 import { ApiError } from '@/services/apiClient'
 import { useAnalyseProject, useCreateProject, useDepartments } from '@/hooks/useApi'
@@ -27,7 +27,7 @@ function analyseErrorMessage(e: unknown): string {
   return errorMessage(e)
 }
 
-function CandidateView({ c, onView, onBook }: { c: MatchCandidate; onView: () => void; onBook: () => void }) {
+function CandidateView({ c, onView, onBook, onFind }: { c: MatchCandidate; onView: () => void; onBook: () => void; onFind: () => void }) {
   return (
     <div className="rounded-xl border border-line bg-surface2/50 p-3.5 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -49,12 +49,13 @@ function CandidateView({ c, onView, onBook }: { c: MatchCandidate; onView: () =>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant="secondary" onClick={onView}>View equipment<span className="sr-only">: {c.name}</span></Button>
         <Button size="sm" onClick={onBook}>Request booking<span className="sr-only">: {c.name}</span></Button>
+        <Button size="sm" variant="secondary" onClick={onFind}><IconMapPin size={16} /> Find in 3D Campus<span className="sr-only">: {c.name}</span></Button>
       </div>
     </div>
   )
 }
 
-function MatchCard({ m, onView, onBook }: { m: RequirementMatch; onView: (id: string) => void; onBook: (id: string) => void }) {
+function MatchCard({ m, onView, onBook, onFind }: { m: RequirementMatch; onView: (id: string) => void; onBook: (id: string) => void; onFind: (id: string, label: string) => void }) {
   const others = m.candidates.filter((c) => c.equipment_type_id !== m.best?.equipment_type_id)
   return (
     <Card as="article" aria-label={m.requirement_name}>
@@ -73,13 +74,13 @@ function MatchCard({ m, onView, onBook }: { m: RequirementMatch; onView: (id: st
       ) : (
         <div className="mt-3 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-subtle">Best candidate</p>
-          <CandidateView c={m.best} onView={() => onView(m.best!.equipment_type_id)} onBook={() => onBook(m.best!.equipment_type_id)} />
+          <CandidateView c={m.best} onView={() => onView(m.best!.equipment_type_id)} onBook={() => onBook(m.best!.equipment_type_id)} onFind={() => onFind(m.best!.equipment_type_id, m.best!.name)} />
           {others.length > 0 && (
             <details>
               <summary className="flex min-h-11 cursor-pointer items-center py-2 text-sm font-medium text-muted hover:text-fg">Other candidates ({others.length})</summary>
               <div className="space-y-2">
                 {others.map((c) => (
-                  <CandidateView key={c.equipment_type_id} c={c} onView={() => onView(c.equipment_type_id)} onBook={() => onBook(c.equipment_type_id)} />
+                  <CandidateView key={c.equipment_type_id} c={c} onView={() => onView(c.equipment_type_id)} onBook={() => onBook(c.equipment_type_id)} onFind={() => onFind(c.equipment_type_id, c.name)} />
                 ))}
               </div>
             </details>
@@ -90,7 +91,7 @@ function MatchCard({ m, onView, onBook }: { m: RequirementMatch; onView: (id: st
   )
 }
 
-export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boolean; onViewMatch?: (equipmentId: string) => void; onBook?: (equipmentId: string) => void }) {
+export function ProjectLab({ embedded, onViewMatch, onBook, onFind }: { embedded?: boolean; onViewMatch?: (equipmentId: string) => void; onBook?: (equipmentId: string) => void; onFind?: (equipmentId: string, label: string) => void }) {
   const navigate = useNavigate()
   const store = useAppStore()
   const depts = useDepartments()
@@ -169,6 +170,11 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
     })
   }
 
+  const find = (id: string, label: string) => {
+    store.setFindInCampus({ equipmentId: id, label })
+    if (onFind) onFind(id, label)
+    else navigate(ROUTES.campus3d)
+  }
   const view = (id: string) => (onViewMatch ? onViewMatch(id) : navigate(ROUTES.equipment(id)))
 
   const saveProject = async (name: string): Promise<string | null> => {
@@ -373,7 +379,7 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
                   <h3 className="mb-3 text-base font-semibold sm:text-[17px]">{kind === 'required' ? 'Required equipment' : 'Recommended and optional equipment'}</h3>
                   {list.length === 0 ? <p className="text-sm text-muted">None.</p> : (
                     <div className="grid gap-3 xl:grid-cols-2">
-                      {list.map((m, i) => <MatchCard key={`${m.requirement_name}-${i}`} m={m} onView={view} onBook={requestBooking} />)}
+                      {list.map((m, i) => <MatchCard key={`${m.requirement_name}-${i}`} m={m} onView={view} onBook={requestBooking} onFind={find} />)}
                     </div>
                   )}
                 </section>

@@ -176,3 +176,11 @@ On startup (in lifespan): when `DEMO_MODE=true`, run alembic upgrade (or `create
 - `GET /booking-requests?status=waitlisted` works. `GET /approvals/queue` default statuses become `pending_review,waitlisted,alternative_proposed`.
 - Scheduling (`POST /scheduling/recommendations`, `GET /scheduling/conflicts`) treats `waitlisted` like `pending_review`. Recommendation runs never create bookings or change request status.
 - `GET /analytics/overview` gains `waitlisted_count`.
+
+
+## Controlled demo reset (roadmap H.5)
+Public, unauthenticated apps must never expose an unrestricted destructive endpoint, so the reset is **off by default in production** and guarded.
+- Enabled only when `DEMO_MODE=true` AND `DEMO_RESET_ENABLED` is true (default: false when `APP_ENV=production`, true otherwise). `GET /config/public` returns `demo_reset_enabled: boolean` (true only when both hold).
+- `POST /demo/reset-token` -> `{"token": string, "expires_in_seconds": 120}`. One-time, in-memory, rate limited 5/min/IP (429 `RATE_LIMITED`). Disabled -> 403 `DEMO_RESET_DISABLED`.
+- `POST /demo/reset` body `{"token": string, "confirm": "RESET DEMO SCENARIO"}` -> `{"status":"reset","restored":{"requests_removed":n,"bookings_removed":n,"projects_removed":n,"maintenance_removed":n}}`. Wrong confirm text / bad, expired or used token -> 400 `VALIDATION_ERROR`. Disabled -> 403.
+- Only non-seed rows are removed (seed ids are recognised by prefix: `req-seed-`, `req-hist-`, `bk-seed-`, `bk-hist-`, `prj-seed-`); seed requests are restored to their seeded state; the catalogue (departments, labs, equipment types, units) is never touched; tables are never dropped.

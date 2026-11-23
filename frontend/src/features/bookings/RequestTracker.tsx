@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, Select, StatusChip, Chip, IconEye, IconChevronRight } from '@/components/ui'
+import { Link } from 'react-router-dom'
+import { Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, SkeletonRows, Select, StatusChip, Chip, IconEye, IconChevronRight, buttonCls } from '@/components/ui'
+import { ROUTES } from '@/lib/routes'
 import { useAcceptAlternative, useBookingRequest, useBookingRequests, useCancelRequest } from '@/hooks/useApi'
 import { toast } from '@/stores/appStore'
 import { formatRange } from '@/lib/format'
@@ -124,10 +126,10 @@ export function RequestTracker({ embedded }: { embedded?: boolean }) {
         </Field>
       </Card>
 
-      <QueryBoundary query={query} loadingLabel="Loading requests…">
+      <QueryBoundary query={query} loadingLabel="Loading requests…" skeleton={<SkeletonRows count={4} />}>
         {(p) =>
           p.items.length === 0 ? (
-            <EmptyState title="No booking requests found" hint="Submit a request from Discover or the Calendar." />
+            <EmptyState title="No requests yet" hint="Submit a request from Discover or the Calendar to track it here." action={<Link to={ROUTES.discover} className={buttonCls('primary')}>Browse equipment</Link>} />
           ) : (
             <>
               <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface shadow-card md:block">

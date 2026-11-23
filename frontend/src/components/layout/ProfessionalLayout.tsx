@@ -4,12 +4,13 @@ import { ROUTES } from '@/lib/routes'
 import {
   cx, Button, Modal,
   IconBuilding, IconCalendar, IconChart, IconCheckSquare, IconClipboard, IconCube, IconFlask, IconHome, IconListChecks,
-  IconMenu, IconMessage, IconSearch, IconSliders, IconInfo, type IconProps,
+  IconMenu, IconMessage, IconSearch, IconSliders, IconInfo, IconCheckCircle, IconClock, IconAlert, IconWifi, type IconProps,
 } from '@/components/ui'
 import { NotificationCenter } from '@/features/analytics'
 import { GuidedDemo } from '@/components/shared/GuidedDemo'
 import { useAppStore } from '@/stores/appStore'
 import { usePublicConfig } from '@/hooks/useApi'
+import { useConnectionStore } from '@/features/connection/connectionStore'
 
 type NavItem = { to: string; label: string; short: string; icon: ComponentType<IconProps>; end?: boolean; group: string }
 
@@ -43,6 +44,37 @@ function Wordmark() {
       <LogoMark />
       <span>LabLink</span>
     </Link>
+  )
+}
+
+/** Segmented 2D/3D switch. Professional Mode is always the current mode inside this layout. */
+export function ModeSwitch({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
+  const seg = 'inline-flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-semibold transition-colors lg:min-h-9'
+  return (
+    <nav aria-label="Interface mode" className={cx('inline-flex overflow-hidden rounded-lg border border-line-strong bg-surface shadow-card', className)}>
+      <span aria-current="page" className={cx(seg, 'bg-brand-subtle text-brand-fg')}>
+        <IconClipboard size={16} />Professional<span className="max-sm:sr-only">&nbsp;Mode</span>
+      </span>
+      <Link to={ROUTES.campus3d} onClick={onNavigate} className={cx(seg, 'border-l border-line-strong text-muted hover:bg-surface2 hover:text-fg')}>
+        <IconCube size={16} />3D<span className="max-sm:sr-only">&nbsp;Campus Mode</span>
+      </Link>
+    </nav>
+  )
+}
+
+/** Always-visible, unobtrusive backend status (text + icon, never colour alone). */
+export function ConnectionIndicator() {
+  const state = useConnectionStore((s) => s.state)
+  const m = {
+    connected: { label: 'Connected', icon: <IconCheckCircle size={14} />, cls: 'text-emerald-700' },
+    checking: { label: 'Connecting…', icon: <IconWifi size={14} />, cls: 'text-muted' },
+    waking: { label: 'Waking up…', icon: <IconClock size={14} />, cls: 'text-amber-800' },
+    unavailable: { label: 'Unavailable', icon: <IconAlert size={14} />, cls: 'text-red-700' },
+  }[state]
+  return (
+    <span role="status" data-testid="connection-indicator" className={cx('inline-flex items-center gap-1 text-xs font-medium', m.cls)}>
+      {m.icon}<span className="max-sm:sr-only">{m.label}</span>
+    </span>
   )
 }
 
@@ -80,13 +112,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           </ul>
         </div>
       ))}
-      <Link
-        to={ROUTES.campus3d}
-        onClick={onNavigate}
-        className="flex min-h-11 items-center gap-3 rounded-lg border border-line-strong bg-surface px-3 text-sm font-semibold text-fg shadow-card transition-colors hover:bg-surface2"
-      >
-        <IconCube size={18} className="text-brand" /> Open 3D Campus
-      </Link>
+      {onNavigate && <ModeSwitch onNavigate={onNavigate} className="w-full [&>*]:flex-1" />}
     </nav>
   )
 }
@@ -148,12 +174,8 @@ export function ProfessionalLayout() {
             <Button variant="ghost" onClick={() => setGuided(true)} className="max-md:hidden">
               <IconListChecks size={18} /> Guided demo
             </Button>
-            <Link
-              to={ROUTES.campus3d}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-sm font-semibold text-fg shadow-card transition-colors hover:bg-surface2 lg:min-h-10"
-            >
-              <IconCube size={18} className="text-brand" />3D<span className="-ml-1 hidden sm:inline"> Campus</span>
-            </Link>
+            <ConnectionIndicator />
+            <ModeSwitch className="max-sm:hidden" />
             <NotificationCenter />
           </div>
         </header>

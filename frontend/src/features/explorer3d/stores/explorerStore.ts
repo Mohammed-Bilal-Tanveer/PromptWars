@@ -10,7 +10,19 @@ export interface PanelState { kind: PanelKind; recordId?: string; tab?: 'calenda
 export type Quality = 'auto' | 'low' | 'high'
 export interface Waypoint { x: number; z: number; label: string }
 
+export interface FindState {
+  equipmentId: string
+  label: string
+  /** 'entrance' → walk to the door; 'bench' → inside, walk to the bench; 'unavailable' → cannot navigate. */
+  stage: 'entrance' | 'bench' | 'unavailable'
+  buildingId?: string
+  buildingLabel?: string
+  bench?: { x: number; z: number }
+}
+
 interface ExplorerState {
+  find: FindState | null
+  setFind: (f: FindState | null) => void
   panel: PanelState | null
   prevPanel: PanelState | null
   openPanel: (p: PanelState) => void
@@ -48,6 +60,8 @@ const loadCharacter = (): CharacterId => {
 }
 
 export const useExplorerStore = create<ExplorerState>((set, get) => ({
+  find: null,
+  setFind: (f) => set({ find: f }),
   panel: null,
   prevPanel: null,
   openPanel: (p) => set((s) => ({ menuOpen: false, prevPanel: s.panel && s.panel.kind !== 'settings' ? s.panel : null, panel: p })),

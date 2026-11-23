@@ -2,7 +2,7 @@ import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type Inpu
 import { ApiError } from '@/services/apiClient'
 import { humanize } from '@/lib/format'
 import {
-  IconAlert, IconCheck, IconCheckCircle, IconClock, IconDot, IconInbox, IconInfo, IconListChecks, IconMinus, IconSwap, IconWrench, IconX, IconXCircle,
+  IconAlert, IconCalendarBan, IconCheck, IconCheckCircle, IconClock, IconDot, IconHourglass, IconInbox, IconInfo, IconListChecks, IconMinus, IconQueue, IconSparkles, IconSwap, IconWrench, IconX, IconXCircle,
 } from './icons'
 
 export * from './icons'
@@ -70,11 +70,18 @@ export function GradientCard({ gradient = 'brand', className, children }: { grad
   return <div className={cx('rounded-2xl border p-4 text-fg sm:p-5', TINT[gradient] ?? TINT.brand, className)}>{children}</div>
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode; gradient?: string }) {
+const ACCENT_TILE: Record<string, string> = {
+  blue: 'bg-brand-subtle text-brand', teal: 'bg-teal-50 text-teal-700', amber: 'bg-amber-50 text-amber-700',
+  slate: 'bg-slate-100 text-slate-700', green: 'bg-emerald-50 text-emerald-700',
+}
+export function PageHeader({ title, subtitle, actions, icon, accent = 'blue' }: { title: string; subtitle?: ReactNode; actions?: ReactNode; gradient?: string; icon?: ReactNode; accent?: 'blue' | 'teal' | 'amber' | 'slate' | 'green' }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-fg sm:text-[28px] sm:leading-9">{title}</h1>
+        <div className="flex items-center gap-3">
+          {icon && <span aria-hidden className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-lg', ACCENT_TILE[accent])}>{icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-fg sm:text-[28px] sm:leading-9">{title}</h1>
+        </div>
         {subtitle && <p className="mt-1.5 max-w-3xl text-[15px] text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -114,15 +121,16 @@ export function Chip({ tone = 'neutral', icon, children, className }: { tone?: T
 const I = { size: 13, strokeWidth: 2 } as const
 const DOT = <IconDot size={10} />
 const STATUS_TONE: Record<string, { tone: Tone; icon: ReactNode; label?: string }> = {
-  available: { tone: 'ok', icon: DOT, label: 'Available' },
-  occupied: { tone: 'warn', icon: <IconClock {...I} />, label: 'Fully booked now' },
-  maintenance: { tone: 'danger', icon: <IconWrench {...I} />, label: 'Under maintenance' },
+  available: { tone: 'ok', icon: <IconCheck {...I} />, label: 'Available' },
+  partially_booked: { tone: 'warn', icon: <IconClock {...I} />, label: 'Partially booked' },
+  occupied: { tone: 'warn', icon: <IconCalendarBan {...I} />, label: 'Fully booked' },
+  maintenance: { tone: 'danger', icon: <IconWrench {...I} />, label: 'Maintenance' },
   operational: { tone: 'ok', icon: DOT, label: 'Operational' },
   unavailable: { tone: 'danger', icon: <IconXCircle {...I} />, label: 'Unavailable' },
-  pending_review: { tone: 'warn', icon: <IconClock {...I} />, label: 'Pending review' },
-  waitlisted: { tone: 'info', icon: <IconListChecks {...I} />, label: 'Waitlisted' },
+  pending_review: { tone: 'warn', icon: <IconHourglass {...I} />, label: 'Pending review' },
+  waitlisted: { tone: 'info', icon: <IconQueue {...I} />, label: 'Waitlisted' },
   approved: { tone: 'ok', icon: <IconCheck {...I} /> },
-  confirmed: { tone: 'ok', icon: <IconCheck {...I} />, label: 'Confirmed' },
+  confirmed: { tone: 'ok', icon: <IconCheckCircle {...I} />, label: 'Confirmed' },
   rejected: { tone: 'danger', icon: <IconX {...I} />, label: 'Rejected' },
   alternative_proposed: { tone: 'info', icon: <IconSwap {...I} />, label: 'Alternative proposed' },
   cancelled: { tone: 'neutral', icon: <IconMinus {...I} />, label: 'Cancelled' },
@@ -137,7 +145,7 @@ const STATUS_TONE: Record<string, { tone: Tone; icon: ReactNode; label?: string 
   partially_feasible: { tone: 'warn', icon: <IconAlert {...I} />, label: 'Partially feasible' },
   infeasible: { tone: 'danger', icon: <IconX {...I} />, label: 'Infeasible' },
   required: { tone: 'ai', icon: null, label: 'Required' },
-  recommended: { tone: 'avail', icon: null, label: 'Recommended' },
+  recommended: { tone: 'avail', icon: <IconSparkles {...I} />, label: 'Recommended' },
   optional: { tone: 'neutral', icon: null, label: 'Optional' },
 }
 /** Status is always text + icon + colour (never colour alone). */
@@ -166,6 +174,31 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
 /** Shimmer placeholder rows for list-like content. */
 export function Skeleton({ className }: { className?: string }) {
   return <div className={cx('skeleton h-4', className)} aria-hidden />
+}
+/** Card-grid skeleton (equipment catalogue, tiles). */
+export function SkeletonCards({ count = 6, className }: { count?: number; className?: string }) {
+  return (
+    <div className={cx('grid gap-4 sm:grid-cols-2 xl:grid-cols-3', className)} aria-hidden>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <Skeleton className="h-5 w-2/3" /><Skeleton className="mt-3 h-3 w-1/3" /><Skeleton className="mt-4 h-4 w-1/2" /><Skeleton className="mt-3 h-3 w-full" /><Skeleton className="mt-4 h-8 w-24" />
+        </div>
+      ))}
+    </div>
+  )
+}
+/** List/table-row skeleton (requests, approvals). */
+export function SkeletonRows({ count = 4 }: { count?: number }) {
+  return (
+    <div className="space-y-3" aria-hidden>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <div className="min-w-0 flex-1"><Skeleton className="h-4 w-1/2" /><Skeleton className="mt-2 h-3 w-1/3" /></div>
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+      ))}
+    </div>
+  )
 }
 export function EmptyState({ title, hint, action, icon }: { title: string; hint?: string; action?: ReactNode; icon?: ReactNode }) {
   // Emoji icons from older call sites are ignored in favour of the outline icon set.
@@ -211,8 +244,8 @@ export function Notice({ tone = 'info', title, children }: { tone?: Tone; title?
 }
 
 /** Renders loading / error / data for a TanStack query result. */
-export function QueryBoundary<T>({ query, children, loadingLabel }: { query: { isLoading: boolean; isError: boolean; error: unknown; data: T | undefined; refetch: () => any }; children: (data: T) => ReactNode; loadingLabel?: string }) {
-  if (query.isLoading) return <LoadingState label={loadingLabel} />
+export function QueryBoundary<T>({ query, children, loadingLabel, skeleton }: { query: { isLoading: boolean; isError: boolean; error: unknown; data: T | undefined; refetch: () => any }; children: (data: T) => ReactNode; loadingLabel?: string; skeleton?: ReactNode }) {
+  if (query.isLoading) return skeleton ? <div role="status" aria-live="polite" aria-busy="true"><span className="sr-only">{loadingLabel ?? 'Loading…'}</span>{skeleton}</div> : <LoadingState label={loadingLabel} />
   if (query.isError) return <ErrorState error={query.error} onRetry={() => query.refetch()} />
   if (query.data === undefined) return null
   return <>{children(query.data)}</>

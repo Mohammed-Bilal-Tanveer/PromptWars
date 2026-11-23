@@ -44,3 +44,12 @@ describe('EquipmentCatalogue', () => {
     expect(await screen.findByText(/No equipment matches/i)).toBeInTheDocument()
   })
 })
+
+import { availabilityStatus } from './index'
+describe('availabilityStatus', () => {
+  it('reports partially_booked when only some units are free', () => {
+    expect(availabilityStatus({ status: 'available', quantity_available: 1, quantity_total: 3 })).toBe('partially_booked')
+    expect(availabilityStatus({ status: 'available', quantity_available: 3, quantity_total: 3 })).toBe('available')
+    expect(availabilityStatus({ status: 'maintenance', quantity_available: 0, quantity_total: 3 })).toBe('maintenance')
+  })
+})

@@ -32,6 +32,10 @@ interface AppState {
   lastAnalysisInput: { title: string; description: string } | null
   setLastAnalysis: (a: AnalysisResult | null, input?: { title: string; description: string } | null) => void
 
+  /** Request from Project Lab to locate an equipment item in the 3D campus (consumed on entering 3D). */
+  findInCampus: { equipmentId: string; label: string } | null
+  setFindInCampus: (t: { equipmentId: string; label: string } | null) => void
+
   /** Pre-fill for the booking form (from AI match / assistant action). */
   bookingDraft: BookingDraft | null
   setBookingDraft: (d: BookingDraft | null) => void
@@ -63,6 +67,9 @@ export const useAppStore = create<AppState>((set) => ({
   lastAnalysis: null,
   lastAnalysisInput: null,
   setLastAnalysis: (a, input = null) => set({ lastAnalysis: a, lastAnalysisInput: input }),
+
+  findInCampus: null,
+  setFindInCampus: (t) => set({ findInCampus: t }),
 
   bookingDraft: null,
   setBookingDraft: (d) => set({ bookingDraft: d }),
