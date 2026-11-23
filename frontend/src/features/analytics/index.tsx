@@ -115,7 +115,7 @@ export function AnalyticsDashboard({ embedded: _embedded }: { embedded?: boolean
             </ChartCard>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card className="min-w-0">
               <h3 className="mb-3 text-[15px] font-semibold">Most requested equipment</h3>
               {ut.data.most_requested.length === 0 ? <p className="text-sm text-muted">No requests yet.</p> : (
                 <ol className="divide-y divide-line text-sm">{ut.data.most_requested.map((m, i) => (
@@ -126,7 +126,7 @@ export function AnalyticsDashboard({ embedded: _embedded }: { embedded?: boolean
                 ))}</ol>
               )}
             </Card>
-            <Card>
+            <Card className="min-w-0">
               <h3 className="mb-3 text-[15px] font-semibold">Underutilised equipment</h3>
               {ut.data.underutilised.length === 0 ? <p className="text-sm text-muted">No data.</p> : (
                 <ul className="divide-y divide-line text-sm">{ut.data.underutilised.map((u) => (

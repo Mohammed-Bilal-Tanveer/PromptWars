@@ -145,7 +145,7 @@ export function ProfessionalLayout() {
             </Button>
           </form>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setGuided(true)} className="hidden md:inline-flex">
+            <Button variant="ghost" onClick={() => setGuided(true)} className="max-md:hidden">
               <IconListChecks size={18} /> Guided demo
             </Button>
             <Link

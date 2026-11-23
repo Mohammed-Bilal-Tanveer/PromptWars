@@ -17,7 +17,7 @@ const btn = `inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-s
 export function ExitButton() {
   return (
     <Link to={ROUTES.overview} className={btn} aria-label="Exit 3D and skip to dashboard">
-      <IconArrowLeft size={18} className="text-muted" /> Exit 3D · Go to dashboard
+      <IconArrowLeft size={18} className="text-muted" /> Exit 3D<span className="max-sm:hidden"> · Go to dashboard</span>
     </Link>
   )
 }
@@ -104,8 +104,8 @@ export function InteractPrompt() {
   const panel = useExplorerStore((s) => s.panel)
   if (!nearest || panel) return null
   return (
-    <div className="pointer-events-auto absolute left-1/2 top-40 z-20 -translate-x-1/2" role="status">
-      <button onClick={interactNearest} className="inline-flex min-h-11 items-center gap-2.5 rounded-lg bg-brand px-4 py-2 text-[15px] font-semibold text-white shadow-pop transition-colors hover:bg-brand-hover" aria-label={nearest.prompt}>
+    <div className="pointer-events-auto absolute left-1/2 top-40 z-20 -translate-x-1/2 max-sm:bottom-[17rem] max-sm:top-auto" role="status">
+      <button onClick={interactNearest} className="inline-flex min-h-11 items-center gap-2.5 whitespace-nowrap rounded-lg bg-brand px-4 py-2 text-[15px] font-semibold text-white shadow-pop transition-colors hover:bg-brand-hover" aria-label={nearest.prompt}>
         <kbd className="rounded border border-white/40 bg-white/15 px-1.5 font-sans text-sm">E</kbd> {nearest.prompt.replace(/^Press E to /, '')}
       </button>
     </div>

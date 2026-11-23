@@ -6,7 +6,7 @@
  * so every screen picks up the light palette without per-file rewrites.
  *
  * Contrast (WCAG AA, measured on #FFFFFF and on --color-bg #F6F6F3):
- *   fg #101828 ≈ 17:1 · muted #475467 ≈ 7.3:1 · subtle #5D6B82 ≈ 5.3:1 · brand #1D4ED8 ≈ 6.7:1
+ *   fg #101828 ≈ 17:1 · muted #475467 ≈ 7.1:1 · subtle #5D6B82 ≈ 5.0:1 · brand #1D4ED8 ≈ 6.7:1 (on white)
  */
 @theme {
   /* Neutrals */
