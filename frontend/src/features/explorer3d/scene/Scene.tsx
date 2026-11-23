@@ -7,7 +7,7 @@ import { PlayerRig } from '../character/Player'
 import { Npcs, type NpcDef } from '../character/KenneyCharacter'
 import { preloadKenney } from './kenney'
 import { Building, Bench } from './Building'
-import { EquipmentAnchor, Kiosk, Terminal, Trees, WaypointBeacon, WelcomeSign } from './Props'
+import { EquipmentAnchor, Kiosk, TERMINAL_ACCENT, Terminal, Trees, WaypointBeacon, WelcomeSign } from './Props'
 import {
   BENCHES_PLAZA, BUILDINGS, PLAZA, benchBox, buildAnchors, consolePos, csAiTerminal, doorOutside, staticColliders, buildingById,
 } from '../environments/layout'
@@ -30,8 +30,8 @@ const NPCS_HIGH: NpcDef[] = [
   { id: 'male-c', x: -14, z: 3.4, heading: 1.57, to: { x: 14, z: 3.4 } },
 ]
 
-const pathMat = new THREE.MeshStandardMaterial({ color: '#d8c9a3', roughness: 1 })
-const plazaMat = new THREE.MeshStandardMaterial({ color: '#c9d1e6', roughness: 0.9 })
+const pathMat = new THREE.MeshStandardMaterial({ color: '#ddd3bd', roughness: 1 })
+const plazaMat = new THREE.MeshStandardMaterial({ color: '#dcd7cc', roughness: 0.9 })
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 
 function Paths() {
@@ -61,7 +61,7 @@ function useRegisterInteractables(anchors: ReturnType<typeof buildAnchors>) {
   useEffect(() => {
     const items: Interactable[] = [
       { id: 'kiosk', type: 'kiosk', position: PLAZA.kiosk, radius: 3.2, label: 'Information Kiosk', prompt: 'Press E to open the campus kiosk' },
-      { id: 'plaza-ai', type: 'ai_terminal', position: PLAZA.ai, radius: 3, label: 'AI Project Lab terminal', prompt: 'Press E to open the AI Project Lab' },
+      { id: 'plaza-ai', type: 'ai_terminal', position: PLAZA.ai, radius: 3, label: 'Project Lab terminal', prompt: 'Press E to open Project Lab' },
       { id: 'plaza-booking', type: 'booking_terminal', position: PLAZA.booking, radius: 3, label: 'Booking terminal', prompt: 'Press E to open bookings' },
       { id: 'plaza-sched', type: 'scheduling_hub', position: PLAZA.scheduling, radius: 3, label: 'Scheduling hub', prompt: 'Press E to open the scheduling studio' },
     ]
@@ -80,7 +80,7 @@ function useRegisterInteractables(anchors: ReturnType<typeof buildAnchors>) {
       })
     }
     const cs = buildingById('CS-B')!
-    items.push({ id: 'cs-ai', type: 'ai_terminal', position: csAiTerminal(cs), radius: 2.8, label: 'AI Project Lab terminal (CS-B)', prompt: 'Press E to open the AI Project Lab' })
+    items.push({ id: 'cs-ai', type: 'ai_terminal', position: csAiTerminal(cs), radius: 2.8, label: 'Project Lab terminal (CS-B)', prompt: 'Press E to open Project Lab' })
     for (const a of anchors) {
       items.push({ id: `eq-${a.equipment.id}`, type: 'equipment', position: { x: a.x, z: a.z }, radius: 2.4, label: a.equipment.name, prompt: `Press E to inspect ${a.equipment.name}`, recordId: a.equipment.id })
     }
@@ -102,11 +102,11 @@ function World({ equipment, highlightedIds, paused }: SceneProps) {
 
   return (
     <>
-      <color attach="background" args={['#bfe3ff']} />
-      <fog attach="fog" args={['#bfe3ff', 60, 150]} />
+      <color attach="background" args={['#dde7ee']} />
+      <fog attach="fog" args={['#dde7ee', 60, 150]} />
       <Sky distance={450000} sunPosition={[30, 50, 20]} turbidity={3} rayleigh={1.1} mieCoefficient={0.004} />
       <ambientLight intensity={0.7} />
-      <hemisphereLight args={['#dff1ff', '#5a8f4a', 0.8]} />
+      <hemisphereLight args={['#eef3f7', '#7d9670', 0.8]} />
       <directionalLight
         position={[30, 50, 20]}
         color="#fff1d6"
@@ -123,14 +123,14 @@ function World({ equipment, highlightedIds, paused }: SceneProps) {
       />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[130, 130]} />
-        <meshStandardMaterial color="#7bbf6a" roughness={1} />
+        <meshStandardMaterial color="#a3bf8f" roughness={1} />
       </mesh>
       <Paths />
       <WelcomeSign x={PLAZA.sign.x} z={PLAZA.sign.z} />
       <Kiosk x={PLAZA.kiosk.x} z={PLAZA.kiosk.z} />
-      <Terminal x={PLAZA.ai.x} z={PLAZA.ai.z} color="#a855f7" label="AI Project Lab" />
-      <Terminal x={PLAZA.booking.x} z={PLAZA.booking.z} color="#22d3ee" label="Bookings" />
-      <Terminal x={PLAZA.scheduling.x} z={PLAZA.scheduling.z} color="#4f8bff" label="Scheduling Hub" />
+      <Terminal x={PLAZA.ai.x} z={PLAZA.ai.z} color={TERMINAL_ACCENT} label="Project Lab" />
+      <Terminal x={PLAZA.booking.x} z={PLAZA.booking.z} color={TERMINAL_ACCENT} label="Bookings" />
+      <Terminal x={PLAZA.scheduling.x} z={PLAZA.scheduling.z} color={TERMINAL_ACCENT} label="Scheduling" />
       {BENCHES_PLAZA.map((b, i) => <Bench key={i} x={b.x} z={b.z} rot={b.rot} height={0.6} />)}
       {BUILDINGS.map((b) => (
         <Building key={b.id} def={b} hasAiTerminal={b.id === 'CS-B'} benchSlots={anchors.filter((a) => a.buildingId === b.id).map((a) => ({ x: a.x, z: a.z }))} />

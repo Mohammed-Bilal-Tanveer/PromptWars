@@ -77,4 +77,5 @@ export const IconSwap = make('Swap', <path d="M7 4.5 3.5 8 7 11.5M3.5 8h13M17 12
 export const IconMinus = make('Minus', <path d="M6 12h12" />)
 export const IconDot = make('Dot', <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />)
 export const IconLightbulb = make('Lightbulb', <><path d="M9 17.5h6M10 20.5h4" /><path d="M8.5 14.5a6 6 0 1 1 7 0c-.6.5-1 1.2-1 2v1h-5v-1c0-.8-.4-1.5-1-2Z" /></>)
+export const IconSettings = make('Settings', <><circle cx="12" cy="12" r="2.8" /><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z" /></>)
 export const IconHelp = make('Help', <><circle cx="12" cy="12" r="8.5" /><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.9c0 1.6-2.2 2-2.2 3.4M12 16.8h.01" /></>)

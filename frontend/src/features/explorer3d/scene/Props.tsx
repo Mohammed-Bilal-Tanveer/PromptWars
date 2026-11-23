@@ -7,18 +7,20 @@ import { useExplorerStore } from '../stores/explorerStore'
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 12)
-const darkMat = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.6 })
+/** Single accent used by every terminal / kiosk screen in the scene. */
+export const TERMINAL_ACCENT = '#2f62d8'
+const darkMat = new THREE.MeshStandardMaterial({ color: '#3b4452', roughness: 0.7 })
 const metalMat = new THREE.MeshStandardMaterial({ color: '#9aa4b8', roughness: 0.4, metalness: 0.4 })
 const whiteMat = new THREE.MeshStandardMaterial({ color: '#e5e7eb', roughness: 0.6 })
-const boardMat = new THREE.MeshStandardMaterial({ color: '#0f766e', roughness: 0.6 })
-const screenMat = new THREE.MeshStandardMaterial({ color: '#22d3ee', emissive: '#22d3ee', emissiveIntensity: 1.1 })
+const boardMat = new THREE.MeshStandardMaterial({ color: '#5f7b72', roughness: 0.7 })
+const screenMat = new THREE.MeshStandardMaterial({ color: '#9fb6d6', emissive: '#7f9cc4', emissiveIntensity: 0.35 })
 const woodMat = new THREE.MeshStandardMaterial({ color: '#8a6a4a', roughness: 0.85 })
 const trunkMat = new THREE.MeshStandardMaterial({ color: '#6b4a2b', roughness: 0.9 })
-const leafMat = new THREE.MeshStandardMaterial({ color: '#3f9b4a', roughness: 0.9, flatShading: true })
+const leafMat = new THREE.MeshStandardMaterial({ color: '#5e8a58', roughness: 0.9, flatShading: true })
 const trunkGeo = new THREE.CylinderGeometry(0.2, 0.28, 1.6, 6)
 const leafGeo = new THREE.ConeGeometry(1.1, 2.6, 7)
 
-/** Holographic terminal: pedestal + glowing screen. Short label only. */
+/** Information terminal: neutral pedestal + softly lit screen in the single accent colour. Short label only. */
 export function Terminal({ x, z, color, label, rotY = 0 }: { x: number; z: number; color: string; label: string; rotY?: number }) {
   const ring = useRef<THREE.Mesh>(null)
   useFrame(({ clock }) => {
@@ -29,14 +31,14 @@ export function Terminal({ x, z, color, label, rotY = 0 }: { x: number; z: numbe
       <mesh geometry={cylGeo} material={darkMat} position={[0, 0.45, 0]} scale={[0.6, 0.9, 0.6]} castShadow />
       <mesh position={[0, 1.5, 0]}>
         <boxGeometry args={[1.2, 0.8, 0.08]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} transparent opacity={0.85} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} roughness={0.45} />
       </mesh>
       <mesh ref={ring} position={[0, 2.3, 0]}>
-        <torusGeometry args={[0.28, 0.04, 6, 16]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
+        <torusGeometry args={[0.22, 0.03, 6, 20]} />
+        <meshStandardMaterial color="#cfd4dc" emissive={color} emissiveIntensity={0.25} />
       </mesh>
       <Billboard position={[0, 2.8, 0]}>
-        <Text fontSize={0.34} color="#ffffff" outlineWidth={0.03} outlineColor="#0b1020" anchorX="center">{label}</Text>
+        <Text fontSize={0.34} color="#1f2937" outlineWidth={0.035} outlineColor="#ffffff" anchorX="center">{label}</Text>
       </Billboard>
     </group>
   )
@@ -48,11 +50,11 @@ export function Kiosk({ x, z }: { x: number; z: number }) {
       <mesh geometry={boxGeo} material={whiteMat} position={[0, 0.6, 0]} scale={[1.6, 1.2, 1.2]} castShadow />
       <mesh position={[0, 1.55, 0]} rotation={[-0.3, 0, 0]}>
         <boxGeometry args={[1.4, 0.8, 0.1]} />
-        <meshStandardMaterial color="#6d6af5" emissive="#6d6af5" emissiveIntensity={1.4} />
+        <meshStandardMaterial color={TERMINAL_ACCENT} emissive={TERMINAL_ACCENT} emissiveIntensity={0.4} roughness={0.45} />
       </mesh>
       <mesh geometry={cylGeo} material={metalMat} position={[0, 2.3, 0]} scale={[0.5, 0.1, 0.5]} />
       <Billboard position={[0, 2.9, 0]}>
-        <Text fontSize={0.34} color="#ffffff" outlineWidth={0.03} outlineColor="#0b1020" anchorX="center">Information Kiosk</Text>
+        <Text fontSize={0.34} color="#1f2937" outlineWidth={0.035} outlineColor="#ffffff" anchorX="center">Information Kiosk</Text>
       </Billboard>
     </group>
   )
@@ -67,7 +69,7 @@ export function WelcomeSign({ x, z }: { x: number; z: number }) {
       <Text position={[0, 2.05, 0.1]} fontSize={0.38} color="#ffffff" anchorX="center">
         Welcome to LabLink Campus
       </Text>
-      <Text position={[0, 1.65, 0.1]} fontSize={0.2} color="#a3acd6" anchorX="center">
+      <Text position={[0, 1.65, 0.1]} fontSize={0.2} color="#cbd5e1" anchorX="center">
         Sample campus data
       </Text>
     </group>
@@ -130,11 +132,11 @@ export function WaypointBeacon() {
     <group position={[wp.x, 0, wp.z]}>
       <mesh ref={ref} position={[0, 6, 0]}>
         <cylinderGeometry args={[0.35, 0.35, 12, 10, 1, true]} />
-        <meshBasicMaterial color="#fbbf24" transparent opacity={0.45} />
+        <meshBasicMaterial color="#e0a03a" transparent opacity={0.28} />
       </mesh>
       <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[1, 1.4, 24]} />
-        <meshBasicMaterial color="#fbbf24" />
+        <meshBasicMaterial color="#d48a1c" />
       </mesh>
     </group>
   )
@@ -226,9 +228,9 @@ function Model({ kind }: { kind: Kind }) {
 }
 
 export function statusBadge(e: Pick<EquipmentType, 'status' | 'quantity_available' | 'quantity_total'>) {
-  if (e.status === 'available') return { icon: '●', text: `Available ${e.quantity_available}/${e.quantity_total}`, bg: '#065f46', fg: '#d1fae5' }
-  if (e.status === 'occupied') return { icon: '◐', text: 'Fully booked now', bg: '#92400e', fg: '#fef3c7' }
-  return { icon: '▲', text: 'Maintenance', bg: '#9f1239', fg: '#ffe4e6' }
+  if (e.status === 'available') return { icon: '●', text: `Available ${e.quantity_available}/${e.quantity_total}`, bg: '#ffffff', fg: '#067647' }
+  if (e.status === 'occupied') return { icon: '◐', text: 'Fully booked now', bg: '#ffffff', fg: '#93370d' }
+  return { icon: '▲', text: 'Maintenance', bg: '#ffffff', fg: '#b42318' }
 }
 
 export function EquipmentAnchor({ x, z, equipment, highlighted, showBadge }: {
@@ -248,17 +250,17 @@ export function EquipmentAnchor({ x, z, equipment, highlighted, showBadge }: {
       <Model kind={kind} />
       {highlighted && (
         <mesh ref={ring} position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.0, 1.25, 28]} />
-          <meshBasicMaterial color="#f472b6" />
+          <ringGeometry args={[1.05, 1.2, 40]} />
+          <meshBasicMaterial color="#2f62d8" transparent opacity={0.85} />
         </mesh>
       )}
       {showBadge && (
         <Html position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            style={{ background: b.bg, color: b.fg, border: highlighted ? '2px solid #f472b6' : '1px solid rgba(255,255,255,.3)', borderRadius: 8, padding: '2px 8px', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}
+            style={{ background: b.bg, color: b.fg, border: highlighted ? '2px solid #1d4ed8' : '1px solid #d0d5dd', borderRadius: 8, padding: '3px 9px', fontSize: 12, lineHeight: 1.35, whiteSpace: 'nowrap', textAlign: 'center', fontFamily: 'system-ui, "Segoe UI", sans-serif', boxShadow: '0 1px 3px rgba(16,24,40,.12)' }}
           >
-            <div style={{ fontWeight: 700 }}>{equipment.name}</div>
-            <div>{b.icon} {b.text}{highlighted ? ' · ★ AI match' : ''}</div>
+            <div style={{ fontWeight: 600, color: '#101828' }}>{equipment.name}</div>
+            <div style={{ fontWeight: 500 }}>{b.icon} {b.text}{highlighted ? ' · ★ Project Lab match' : ''}</div>
           </div>
         </Html>
       )}

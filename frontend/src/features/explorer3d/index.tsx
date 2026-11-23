@@ -1,6 +1,7 @@
 import { Component, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '@/lib/routes'
+import { buttonCls, IconCube, IconMapPin } from '@/components/ui'
 import { useAppStore } from '@/stores/appStore'
 import { useEquipmentList } from '@/hooks/useApi'
 import { Loader } from '@react-three/drei'
@@ -23,10 +24,11 @@ export function detectWebGL(): boolean {
 export function WebGLFallback({ reason }: { reason: string }) {
   return (
     <div role="alert" className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 p-8 text-center text-fg">
-      <h1 className="text-2xl font-bold">3D Campus is not available</h1>
+      <span className="grid h-12 w-12 place-items-center rounded-full bg-surface2 text-subtle" aria-hidden><IconCube size={24} /></span>
+      <h1 className="text-2xl font-semibold tracking-tight">3D Campus is not available</h1>
       <p className="text-muted">{reason}</p>
       <p className="text-muted">Everything in 3D mode is also available in Professional Mode.</p>
-      <Link to={ROUTES.overview} className="grad-sched inline-flex min-h-12 items-center rounded-xl px-6 py-3 font-semibold text-white">
+      <Link to={ROUTES.overview} className={buttonCls('primary', 'lg')}>
         Return to Professional Mode
       </Link>
     </div>
@@ -109,7 +111,7 @@ function Explorer() {
   useEffect(() => { if (panel) input.keys.clear() }, [panel])
 
   return (
-    <div className="relative h-[calc(100vh-0px)] min-h-[480px] w-full overflow-hidden bg-sky-200">
+    <div className="relative h-[calc(100vh-0px)] min-h-[480px] w-full overflow-hidden bg-[#dde7ee]">
       <div
         id={CANVAS_WRAP_ID}
         ref={wrap}
@@ -152,12 +154,18 @@ function Explorer() {
         </div>
         <TouchControls />
         {eqQuery.isError && (
-          <div role="alert" className="pointer-events-auto absolute left-1/2 top-3 -translate-x-1/2 rounded-xl bg-rose-700 px-3 py-2 text-sm text-white">
-            Could not load live equipment data. <button className="underline" onClick={() => refetch()}>Retry</button>
+          <div role="alert" className="pointer-events-auto absolute left-1/2 top-3 -translate-x-1/2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 shadow-raised">
+            Could not load live equipment data. <button className="link min-h-6" onClick={() => refetch()}>Retry</button>
           </div>
         )}
       </div>
-      <Loader containerStyles={{ background: 'rgba(11,16,32,0.85)' }} dataInterpolation={(p) => `Loading 3D campus… ${p.toFixed(0)}%`} />
+      <Loader
+        containerStyles={{ background: '#f6f6f3' }}
+        innerStyles={{ background: '#e4e7ec', width: 220, height: 4, borderRadius: 4, overflow: 'hidden' }}
+        barStyles={{ background: '#1d4ed8', height: 4 }}
+        dataStyles={{ color: '#475467', fontSize: 13, fontFamily: 'system-ui, "Segoe UI", sans-serif', fontWeight: 500 }}
+        dataInterpolation={(p) => `Loading 3D campus… ${p.toFixed(0)}%`}
+      />
       <PanelHost equipment={equipment} />
     </div>
   )
@@ -166,8 +174,8 @@ function Explorer() {
 function LocationLabel() {
   const loc = useExplorerStore((s) => s.location)
   return (
-    <div className="rounded-xl border border-white/20 bg-slate-900/85 px-3 py-1.5 text-sm font-semibold text-white" aria-live="polite" aria-label={`Current location: ${loc}`}>
-      📍 {loc}
+    <div className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-semibold text-fg shadow-raised" aria-live="polite" aria-label={`Current location: ${loc}`}>
+      <IconMapPin size={16} className="text-brand" /> {loc}
     </div>
   )
 }

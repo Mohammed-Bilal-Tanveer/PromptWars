@@ -4,12 +4,13 @@ import { Text } from '@react-three/drei'
 import * as THREE from 'three'
 import { BENCH_SIZE, BuildingDef, DOOR_WIDTH, consolePos, csAiTerminal, isInside } from '../environments/layout'
 import { playerState } from '../character/playerState'
-import { Terminal } from './Props'
+import { TERMINAL_ACCENT, Terminal } from './Props'
 import { FLOOR_H, MODULE, usePieceMeshes, type PieceMesh } from './kenney'
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 const benchMat = new THREE.MeshStandardMaterial({ color: '#8a6a4a', roughness: 0.8 })
-const lightMat = new THREE.MeshStandardMaterial({ color: '#fffbe6', emissive: '#fff3b0', emissiveIntensity: 1.2 })
+const lightMat = new THREE.MeshStandardMaterial({ color: '#fffdf5', emissive: '#fff6dc', emissiveIntensity: 0.8 })
+const SIGN_BOARD_MAT = new THREE.MeshStandardMaterial({ color: '#2f3744', roughness: 0.75 })
 const doorMat = new THREE.MeshStandardMaterial({ color: '#8b93a7', roughness: 1 })
 const WALL_T = 0.5
 
@@ -69,8 +70,8 @@ function KitShell({ def }: { def: BuildingDef }) {
   const fz = z + facing * hd, bz = z - facing * hd
 
   const map = (wall[0].material as THREE.MeshStandardMaterial).map
-  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.color, 0.72), emissive: tint(def.color, 0.3), emissiveIntensity: 0.22, roughness: 0.9, side: THREE.DoubleSide, transparent: true }), [map, def.color])
-  const roofMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.roofColor, 0.35), emissive: tint(def.roofColor, 0.3), emissiveIntensity: 0.15, roughness: 0.85, side: THREE.DoubleSide }), [map, def.roofColor])
+  const wallMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.color, 0.12), emissive: tint(def.color, 0.55), emissiveIntensity: 0.16, roughness: 0.92, side: THREE.DoubleSide, transparent: true }), [map, def.color])
+  const roofMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: tint(def.roofColor, 0.25), emissive: tint(def.roofColor, 0.5), emissiveIntensity: 0.06, roughness: 0.88, side: THREE.DoubleSide }), [map, def.roofColor])
   const floorMat = useMemo(() => new THREE.MeshStandardMaterial({ map, color: '#d9dde8', roughness: 0.95 }), [map])
   const roofRef = useRef<THREE.Group>(null)
 
@@ -182,7 +183,8 @@ export function Building({ def, benchSlots, children, hasAiTerminal }: {
   const { x, z, d, h, facing } = def
   const hd = d / 2
   const fz = z + facing * hd
-  const signMat = useMemo(() => new THREE.MeshStandardMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 0.35, roughness: 0.6 }), [def.color])
+  const signMat = SIGN_BOARD_MAT
+  const accentMat = useMemo(() => new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.8 }), [def.color])
   const rot = facing === 1 ? 0 : Math.PI
   const signRef = useRef<THREE.Group>(null)
   useFrame(() => {
@@ -200,11 +202,12 @@ export function Building({ def, benchSlots, children, hasAiTerminal }: {
       <mesh geometry={boxGeo} material={doorMat} position={[x, 0.09, fz + facing * 0.9]} scale={[DOOR_WIDTH, 0.04, 1.6]} />
       {/* roof sign board + short label */}
       <group ref={signRef} position={[x, h + 1.05, fz + facing * 0.3]} rotation={[0, rot, 0]}>
-        <mesh geometry={boxGeo} material={signMat} scale={[5.2, 1.3, 0.25]} castShadow />
-        <Text position={[0, 0, 0.16]} fontSize={0.85} color="#ffffff" outlineWidth={0.04} outlineColor="#0b1020" anchorX="center" anchorY="middle">
+        <mesh geometry={boxGeo} material={signMat} scale={[7.4, 1.9, 0.22]} castShadow />
+        <mesh geometry={boxGeo} material={accentMat} position={[0, -0.88, 0.02]} scale={[7.4, 0.14, 0.24]} />
+        <Text position={[0, 0.3, 0.13]} fontSize={0.72} color="#ffffff" anchorX="center" anchorY="middle">
           {def.short}
         </Text>
-        <Text position={[0, -1.05, 0.05]} fontSize={0.34} color="#ffffff" outlineWidth={0.03} outlineColor="#0b1020" anchorX="center" anchorY="top" maxWidth={9}>
+        <Text position={[0, -0.38, 0.13]} fontSize={0.3} color="#d0d5dd" anchorX="center" anchorY="middle" maxWidth={7}>
           {def.label}
         </Text>
       </group>
@@ -212,13 +215,13 @@ export function Building({ def, benchSlots, children, hasAiTerminal }: {
       {[-4, 4].map((u) => (
         <mesh key={u} geometry={boxGeo} material={lightMat} position={[x + u, h - 0.5, z]} scale={[1.6, 0.1, 0.6]} />
       ))}
-      <Text position={[x, 2.9, z - facing * (hd - 0.45)]} rotation={[0, rot, 0]} fontSize={0.5} color="#0b1020" anchorX="center">
+      <Text position={[x, 2.9, z - facing * (hd - 0.45)]} rotation={[0, rot, 0]} fontSize={0.5} color="#344054" anchorX="center">
         {def.short + ' interior'}
       </Text>
       {benchSlots.map((s, i) => (
         <Bench key={i} x={s.x} z={s.z} />
       ))}
-      {hasAiTerminal && <Terminal x={csAiTerminal(def).x} z={csAiTerminal(def).z} color="#a855f7" label="AI" />}
+      {hasAiTerminal && <Terminal x={csAiTerminal(def).x} z={csAiTerminal(def).z} color={TERMINAL_ACCENT} label="Project Lab" />}
       {def.special && (() => {
         const c = consolePos(def)
         return (
@@ -226,9 +229,9 @@ export function Building({ def, benchSlots, children, hasAiTerminal }: {
             <mesh geometry={boxGeo} material={benchMat} position={[0, 0.5, 0]} scale={[3, 1, 1]} castShadow />
             <mesh position={[0, 1.4, 0]}>
               <boxGeometry args={[2.6, 0.9, 0.12]} />
-              <meshStandardMaterial color={def.color} emissive={def.color} emissiveIntensity={1.6} />
+              <meshStandardMaterial color={TERMINAL_ACCENT} emissive={TERMINAL_ACCENT} emissiveIntensity={0.35} roughness={0.5} />
             </mesh>
-            <Text position={[0, 2.3, 0]} rotation={[0, rot, 0]} fontSize={0.4} color="#ffffff" anchorX="center">
+            <Text position={[0, 2.3, 0]} rotation={[0, rot, 0]} fontSize={0.4} color="#1f2937" outlineWidth={0.025} outlineColor="#ffffff" anchorX="center">
               {def.special === 'operations' ? 'Approval Desk' : 'Analytics Console'}
             </Text>
           </group>
