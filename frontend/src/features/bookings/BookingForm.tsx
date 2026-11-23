@@ -108,7 +108,9 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
           setQueueOpen(false)
           if (r.status === 'waitlisted') toast.success('Added to the allocation queue', `Request ${r.id} is waitlisted. Nothing is reserved.`)
           else toast.success('Booking request submitted', `Request ${r.id} is pending review.`)
-          onSubmitted?.(r.id)
+          // A waitlisted request is NOT a submitted booking: keep the queue confirmation panel (reference, estimated
+          // position, "not a reservation") on screen instead of letting the host close the dialog with a generic toast.
+          if (r.status !== 'waitlisted') onSubmitted?.(r.id)
         },
         onError: (err) => {
           setQueueOpen(false)
