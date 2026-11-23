@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b1020;
+  --color-surface: #111833;
+  --color-surface2: #18214a;
+  --color-line: #2a3566;
+  --color-fg: #eef1ff;
+  --color-muted: #a3acd6;
+  --color-brand: #6d6af5;
+  --color-ai: #a855f7;
+  --color-avail: #22d3ee;
+  --color-sched: #4f8bff;
+  --color-ok: #34d399;
+  --color-warn: #fbbf24;
+  --color-danger: #fb7185;
+  --color-accent: #f472b6;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Gradient tokens (README §6.2). Foreground colours are chosen for contrast. */
+.grad-brand   { background-image: linear-gradient(135deg, #2563EB 0%, #7C3AED 55%, #C026D3 100%); color: #fff; }
+.grad-ai      { background-image: linear-gradient(135deg, #7C3AED, #DB2777); color: #fff; }
+.grad-avail   { background-image: linear-gradient(135deg, #0891B2, #0D9488); color: #fff; }
+.grad-sched   { background-image: linear-gradient(135deg, #4F46E5, #0369A1); color: #fff; }
+.grad-growth  { background-image: linear-gradient(135deg, #0F766E, #4d7c0f); color: #fff; }
+.grad-warn    { background-image: linear-gradient(135deg, #F59E0B, #F97316); color: #1c1000; }
+.grad-accent  { background-image: linear-gradient(135deg, #DB2777, #7C3AED); color: #fff; }
+.grad-text    { background-image: linear-gradient(90deg, #60a5fa, #a78bfa, #f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.animated-bg {
+  background: radial-gradient(60rem 40rem at 10% 0%, rgba(37,99,235,.35), transparent 60%),
+              radial-gradient(50rem 40rem at 100% 10%, rgba(192,38,211,.28), transparent 60%),
+              radial-gradient(45rem 40rem at 50% 100%, rgba(6,182,212,.22), transparent 60%),
+              var(--color-bg);
+  background-size: 140% 140%;
+  animation: drift 24s ease-in-out infinite alternate;
+}
+@keyframes drift { from { background-position: 0% 0%; } to { background-position: 100% 60%; } }
+
+:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; border-radius: 6px; }
+.skip-link { position: absolute; left: -9999px; top: 8px; z-index: 100; background: #fff; color: #000; padding: 8px 12px; border-radius: 8px; }
+.skip-link:focus { left: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  .animated-bg { animation: none; }
+}
+
+/* scrollbars */
+* { scrollbar-width: thin; scrollbar-color: #2a3566 transparent; }
