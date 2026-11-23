@@ -8,4 +8,4 @@
 - 2D (Professional) and 3D modes share the same hooks (`frontend/src/hooks/useApi.ts`) and feature components. UI follows the calm light design tokens in `frontend/src/styles/index.css`; status is always icon + text.
 - The guided demo never mutates data. "Reset demo scenario" stays OFF by default (`DEMO_RESET_ENABLED=true` opt-in, local use only).
 - Keep the repo < 10 MB, no secrets/databases/build output committed. Only `main` is on the remote.
-- Checks: `cd frontend && npm run lint && npx vitest run && npm run build` (70 tests); `cd backend && ruff check . && pytest -q` (103 tests).
+- Checks: `cd frontend && npm run lint && npx vitest run && npm run build` (70 vitest tests in 16 files); `cd backend && ruff check . && pytest -q` (103 pytest tests). Counts last verified on the submission-docs commit; update README and this file together if they change. Not covered: PostgreSQL suite, Playwright, CI.

@@ -2316,3 +2316,48 @@ Use current official documentation when implementing or updating dependencies. D
 **End of LabLink implementation specification.**
 
 Claude Code: begin with Section 0, follow the phased roadmap, protect the one-branch/repository-size requirements, and prioritise a fully working end-to-end evaluator journey over superficial feature count.
+
+
+
+---
+
+# Implementation addendum (post-spec)
+
+This section was added after the original specification above. **Where this addendum and the original text differ, the addendum and `docs/API_CONTRACT.md` describe what is actually implemented.** The original text above is left unchanged.
+
+## Status matrix
+| Area | Status |
+|---|---|
+| No-auth public demo, Demo Approval Desk | Implemented |
+| Shared 2D / 3D hooks and feature components | Implemented |
+| OpenAI analysis (server-side) + labelled `demo_fallback`; deterministic matcher | Implemented |
+| Booking, transactional approval, alternatives, cancellation | Implemented |
+| Allocation queue (waitlist) | Implemented |
+| OR-Tools CP-SAT scheduling + decision visualiser (summary / timeline) | Implemented |
+| Render wake-up / connection handling (GET-only refetch, no mutation replay) | Implemented |
+| 10-step guided demo (non-mutating) | Implemented |
+| Safe demo reset (`DEMO_RESET_ENABLED`, off by default) | Implemented (opt-in, local use) |
+| 3D: Menu, Map & Teleport, click-to-walk, hero models, Find in 3D Campus | Implemented |
+| Accessibility hardening (source-level audit fixes) | Implemented; no screen-reader or real-device testing |
+| Mobile joystick / sprint in 3D | Experimental (tested with synthetic pointer events only) |
+| Automated PostgreSQL test suite, Playwright E2E, CI | Not recorded in this repository (in progress / not implemented) |
+| Authentication, roles, real approvals | Not implemented (by design) |
+| Real email / push notifications | Not implemented (in-app notifications only) |
+
+## What was added after the original spec
+- **Allocation queue (waitlist):** `POST /booking-requests` accepts `join_waitlist`; a request for a fully booked window becomes `waitlisted` (no booking, no reservation, estimated `queue_position`, still needs approval, included in scheduling runs).
+- **Scheduling decision visualiser:** the scheduling response carries a solver `summary` and per-unit `timeline` (locked vs recommended blocks), shown in Scheduling Studio with factor bars and alternatives.
+- **Render wake-up / connection handling:** `frontend/src/features/connection/` runs a readiness probe on `/health/ready`, a single-flight recovery loop, a non-blocking "Waking up LabLink" banner and a "Backend unavailable" state; only GET queries refetch on recovery and mutations are never replayed.
+- **10-step guided demo:** `frontend/src/components/shared/GuidedDemo.tsx`; it only links to screens and never mutates data.
+- **Safe opt-in demo reset:** `POST /demo/reset-token` + `POST /demo/reset`, disabled unless `DEMO_MODE=true` and `DEMO_RESET_ENABLED=true`; one-time 120 s token, typed confirmation `RESET DEMO SCENARIO`, deletes only non-seed rows.
+- **3D upgrades:** top Menu, Map & Teleport (map + resource network), click-to-walk, E/Enter interaction, mobile joystick + Sprint, hero models (Arduino, GPU workstation, 3D printer), Find in 3D Campus guidance, larger coloured world.
+- **Campus-time explanation text:** scheduler explanations show times in `CAMPUS_TIMEZONE`, not UTC.
+- **Accessibility hardening:** modal focus trap/return, 3D panel focus return, contrast, 44 px touch targets, labelled errors, landmarks and page titles.
+
+## Do not remove (guidance for future Claude Code sessions)
+- No login/signup/auth/roles; keep the public, clearly labelled Demo Approval Desk.
+- The backend stays the single source of truth for availability, bookings, approvals, waitlist and scheduling; never hardcode availability in React or the 3D scene.
+- OpenAI stays server-side only with the labelled `demo_fallback`; the LLM never mutates data. Joining the queue never reserves equipment.
+- Keep the guided demo non-mutating and the demo reset off by default (never enable it on a public deployment).
+- Keep the connection manager's rules: single-flight polling, GET-only refetch, no automatic replay of mutations.
+- Keep the shared hooks (`frontend/src/hooks/useApi.ts`) for both 2D and 3D modes, the accessibility fixes above and the CC0 asset credits.

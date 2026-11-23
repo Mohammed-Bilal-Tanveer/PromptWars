@@ -12,14 +12,15 @@ Product spec/roadmap: `docs/SPEC.md`; overview and deployment: `README.md`.
 
 ## Enumerations
 - unit.status: `operational | maintenance | unavailable`
-- equipment.status (derived): `available` (>=1 unit free now & operational) | `limited` (some operational units but all booked now / only 1 free of many) | `unavailable` (all units in maintenance/unavailable) — use: `available` if free_now>0, `occupied` if operational units exist but none free now, `maintenance` if every unit is non-operational. => **`available | occupied | maintenance`**.
+- equipment.status (derived): `available` if >=1 unit is free now, `maintenance` if every unit is in maintenance/non-operational, otherwise `occupied`. => **`available | occupied | maintenance`** (there is no `limited` status).
 - booking_request.status: `pending_review | waitlisted | approved | rejected | alternative_proposed | confirmed | cancelled | completed | expired`
-  - Approving a request runs a fresh transactional availability check; success -> request `confirmed` + Booking row `confirmed` (an `approvals` audit row with action `approved`). Failure -> 409 `SLOT_CONFLICT` with `details.alternatives`, request stays `pending_review`.
+  - Active (reviewable) statuses: `pending_review`, `waitlisted`, `alternative_proposed`. `waitlisted` = joined the allocation queue (no booking, no reservation).
+  - Approving a request (from any active status) runs a fresh transactional availability check; success -> request `confirmed` + Booking row `confirmed` (an `approvals` audit row with action `approved`). Failure -> 409 `SLOT_CONFLICT` with `details.alternatives`, request keeps its current status.
   - `approved` is only a transient/legacy value; normal path jumps straight to `confirmed`.
 - booking.status: `confirmed | cancelled | completed`
 - priority: `required | recommended | optional`
 - match_status: `exact | partial | unavailable | unmatched`
-- notification.type: `request_submitted | waitlist_joined | request_approved | request_rejected | alternative_proposed | booking_confirmed | booking_reminder | booking_cancelled | booking_completed | maintenance`
+- notification.type: `request_submitted | waitlist_joined | demo_reset | request_approved | request_rejected | alternative_proposed | booking_confirmed | booking_reminder | booking_cancelled | booking_completed | maintenance`
 
 ## Stable seed IDs (idempotent seed MUST use exactly these)
 Departments: `dept-cs`, `dept-ece`, `dept-mech`, `dept-civil`, `dept-bio`
@@ -104,10 +105,10 @@ AssistantReply { reply:string, source:"openai"|"deterministic", references:[{typ
 AI rules: OpenAI called server-side only (`OPENAI_API_KEY`, `OPENAI_MODEL`); strict JSON-schema output validated by Pydantic; fallback = deterministic keyword->capability extractor labelled `demo_fallback`; matcher is deterministic and only returns real DB equipment; unmatched requirements stay `unmatched`. Cache by hash for 10 min.
 
 ## Booking requests & bookings
-- `POST /booking-requests` body `{project_id?, project_title, requester_name, requester_department_id, equipment_type_id, requested_unit_id?, start_at, end_at, estimated_hours?, purpose, deadline?}` -> 201 `BookingRequest` (status `pending_review`). Validates ALL hard constraints (end>start, not in past, lab opening hours/operating day, min/max duration, >=1 operational unit, no confirmed-booking/maintenance overlap incl. buffers on at least one unit, supervision flagged in response not blocked). Violation -> 400 `VALIDATION_ERROR` with `details.reasons[]`; no free unit in window -> 409 `SLOT_CONFLICT` with `details:{alternatives:Alternative[], reasons[]}` (request NOT created). Computes priority score+factors. Creates notification `request_submitted` + audit event. If `project_id` missing but `project_title` present, backend auto-creates a manual project row.
+- `POST /booking-requests` body `{project_id?, project_title, requester_name, requester_department_id, equipment_type_id, requested_unit_id?, start_at, end_at, estimated_hours?, purpose?, deadline?, join_waitlist?:boolean (default false)}` -> 201 `BookingRequest` (status `pending_review`, or `waitlisted` when `join_waitlist` is true and no unit is free; see "Allocation queue / waitlist"). Validates ALL hard constraints (end>start, not in past, lab opening hours/operating day, min/max duration, >=1 operational unit, no confirmed-booking/maintenance overlap incl. buffers on at least one unit, supervision flagged in response not blocked). Violation -> 400 `VALIDATION_ERROR` with `details.reasons[]`; no free unit in window and `join_waitlist` false -> 409 `SLOT_CONFLICT` with `details:{alternatives:Alternative[], reasons[]}` (request NOT created); an overlapping active request by the same requester/project/equipment -> 400 `VALIDATION_ERROR`. Computes priority score+factors. Creates notification `request_submitted` + audit event. If `project_id` missing but `project_title` present, backend auto-creates a manual project row.
 - `GET /booking-requests?status=&department_id=&equipment_type_id=&date=YYYY-MM-DD&q=&page=&page_size=` -> `Paginated<BookingRequest>` (newest first). `status` may be comma separated. `department_id` matches requester OR owning department.
 - `GET /booking-requests/{id}` -> `BookingRequest` incl. `timeline`, `analysis`, `availability_now`, `recommendation` (best alternative slot summary or null)
-- `POST /booking-requests/{id}/cancel` -> `BookingRequest` (pending_review/alternative_proposed/confirmed -> cancelled; also cancels its booking)
+- `POST /booking-requests/{id}/cancel` -> `BookingRequest` (pending_review/waitlisted/alternative_proposed/confirmed/approved -> cancelled; also cancels its confirmed booking; any other status -> 409 `INVALID_STATE`)
 - `POST /booking-requests/{id}/accept-alternative` -> `{request, booking}` (re-validates the proposed alternative transactionally; 409 on conflict)
 - `GET /bookings?status=&equipment_type_id=&unit_id=&laboratory_id=&from=&to=&page=&page_size=` -> `Paginated<Booking>` (default status confirmed)
 - `GET /bookings/{id}` -> `Booking`; `POST /bookings/{id}/cancel` -> `Booking`
@@ -129,10 +130,10 @@ Alternative { equipment_type_id, equipment_name, unit_id:string, unit_name, star
 ```
 
 ## Scheduling (OR-Tools CP-SAT) & approvals
-- `POST /scheduling/recommendations` body `{request_ids?:string[], equipment_type_id?:string, window_start?:ISO, window_end?:ISO, duration_minutes?:number, deadline?:ISO, horizon_days?:number(default 7,max 14)}` -> `SchedulingResponse`. With `request_ids`: jointly allocate those requests (any status pending_review/alternative_proposed) over unit-slots (15-min grid) maximising sum(priority-weighted satisfaction) − shift penalty; with `equipment_type_id`+`duration_minutes`: ad-hoc single recommendation (synthetic request, priority from deadline). Solver time limit ≤ 5 s, deterministic (seed/ workers=1). Existing confirmed bookings and maintenance are hard-fixed.
+- `POST /scheduling/recommendations` body `{request_ids?:string[], equipment_type_id?:string, window_start?:ISO, window_end?:ISO, duration_minutes?:number, deadline?:ISO, horizon_days?:number(default 7,max 14)}` -> `SchedulingResponse`. With `request_ids`: jointly allocate those requests (any status pending_review/waitlisted/alternative_proposed; other statuses -> 409 `INVALID_STATE`) over unit-slots (15-min grid) maximising sum(priority-weighted satisfaction) − shift penalty; with `equipment_type_id`+`duration_minutes`: ad-hoc single recommendation (synthetic request, priority from deadline). Solver time limit ≤ 5 s, deterministic (seed/ workers=1). Existing confirmed bookings and maintenance are hard-fixed.
 - `GET /scheduling/conflicts` -> `{conflicts:Conflict[]}`
-- `GET /approvals/queue?status=&department_id=&equipment_type_id=&date=&page=&page_size=` -> `Paginated<BookingRequest>` (default statuses `pending_review,alternative_proposed`; each item includes `availability_now` and `recommendation`)
-- `POST /approvals/{request_id}/approve` body `{note?:string, reviewer_name?:string}` -> `{request:BookingRequest, booking:Booking}`; 409 `SLOT_CONFLICT` w/ `details.alternatives` if no unit free now; 409 `INVALID_STATE` if not pending/alternative_proposed.
+- `GET /approvals/queue?status=&department_id=&equipment_type_id=&date=&page=&page_size=` -> `Paginated<BookingRequest>` (default statuses `pending_review,waitlisted,alternative_proposed`; each item includes `availability_now` and `recommendation`)
+- `POST /approvals/{request_id}/approve` body `{note?:string, reviewer_name?:string}` -> `{request:BookingRequest, booking:Booking}`; 409 `SLOT_CONFLICT` w/ `details.alternatives` if no unit free now; 409 `INVALID_STATE` if not pending_review/waitlisted/alternative_proposed.
 - `POST /approvals/{request_id}/reject` body `{reason:string(min 3), note?}` -> `BookingRequest`
 - `POST /approvals/{request_id}/alternative` body `{start_at,end_at,equipment_unit_id?,equipment_type_id?,note?}` -> `BookingRequest` (status `alternative_proposed`, alternative validated as feasible, else 409)
 
@@ -153,7 +154,7 @@ Conflict { id, type:"pending_overlap"|"maintenance_overlap"|"booking_overlap", s
 Priority formula (weights in config, documented): `0.40*deadline_urgency + 0.25*waiting_time + 0.20*fairness + 0.15*preference_fit`, each normalised 0-1. Fairness = higher for requesters/departments with fewer recent (14-day) allocated hours (identity-free: keyed by department+name hash only for hours, never a priority bonus by name itself). Deterministic reason codes -> English explanation list.
 
 ## Analytics / notifications / maintenance
-- `GET /analytics/overview` -> `{total_units, units_available, units_occupied, units_maintenance, active_bookings /*confirmed, end>=now*/, pending_requests /*pending_review+alternative_proposed*/, waitlisted_count, approved_count /*approved+confirmed+completed*/, rejected_count, confirmed_count, cancelled_count, avg_review_minutes:number|null, conflict_count, alternatives_proposed, alternatives_accepted, alternative_acceptance_rate:number|null, laboratory_count, department_count, is_demo_data:true, data_label:"Sample campus data"}`
+- `GET /analytics/overview` -> `{total_units, units_available, units_occupied, units_maintenance, active_bookings /*confirmed, end>=now*/, pending_requests /*pending_review+alternative_proposed; waitlisted are counted separately*/, waitlisted_count, approved_count /*approved+confirmed+completed*/, rejected_count, confirmed_count, cancelled_count, avg_review_minutes:number|null, conflict_count, alternatives_proposed, alternatives_accepted, alternative_acceptance_rate:number|null, laboratory_count, department_count, is_demo_data:true, data_label:"Sample campus data"}`
 - `GET /analytics/utilisation` -> `{window_days:14, by_department:UtilRow[], by_laboratory:UtilRow[], by_equipment:UtilRow[], most_requested:[{id,name,request_count}], underutilised:UtilRow[] /*lowest 5 by_equipment*/}` where `UtilRow={id,name,booked_hours,capacity_hours,utilisation_pct}` (equipment rows also have `laboratory_name`)
 - `GET /analytics/trends` -> `{peak_hours:[{hour:0-23,bookings:number}], daily:[{date:"YYYY-MM-DD",bookings:number,requests:number}] /*last 14 days + next 7*/}`
 - `GET /notifications?unread_only=false&limit=30` -> `{items:Notification[], unread_count}`; `POST /notifications/{id}/read` -> `Notification`; `POST /notifications/read-all` -> `{unread_count:0}`
@@ -163,23 +164,26 @@ Notification { id, title, message, type, related_entity_type:string|null, relate
 MaintenanceWindow { id, equipment_unit_id, unit_name, inventory_code, equipment_type_id, equipment_name, start_at, end_at, reason, status:"active"|"ended" }
 ```
 
+## Interactive docs
+FastAPI serves Swagger UI at `/docs` and the schema at `/openapi.json` on the host root (not under `/api/v1`).
+
 ## Backend config (env)
 `DATABASE_URL` (empty -> `sqlite:///./lablink.db`; `postgres://` / `postgresql://` -> `postgresql+psycopg://`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_INPUT_CHARS`, `CAMPUS_TIMEZONE`, `FRONTEND_ORIGIN` (comma-separated CORS allowlist; always also allow `http://localhost:5173` & `http://127.0.0.1:5173` in dev), `DEMO_MODE`, `DEMO_RESET_ENABLED` (default false everywhere; see "Controlled demo reset"), `LOG_LEVEL`, `SOLVER_TIME_LIMIT_SECONDS` (default 5), scheduling weights `W_DEADLINE,W_WAITING,W_FAIRNESS,W_PREFERENCE`.
 On startup (in lifespan): when `DEMO_MODE=true`, run alembic upgrade (or `create_all` fallback) + idempotent seed so the hosted demo works with zero manual steps. Seed is idempotent and refreshes time-relative demo bookings only if none exist in the future.
 
 
-## Allocation queue / waitlist (added in the `improvements` branch)
-- New booking_request.status value: **`waitlisted`** (active, not confirmed). Added to the status enum and to `NotificationType` as `waitlist_joined`.
-- `POST /booking-requests` body gains optional `join_waitlist: boolean` (default `false`; existing behaviour unchanged).
+## Allocation queue / waitlist (implemented; the sections above already reflect it)
+- Booking_request.status value **`waitlisted`** (active, not confirmed) and notification type `waitlist_joined`.
+- `POST /booking-requests` accepts optional `join_waitlist: boolean` (default `false`).
   - Hard-constraint failures (bad range, past, closed lab, duration, etc.) stay `400 VALIDATION_ERROR` — **never** waitlisted.
   - Valid window but **no free unit**: `join_waitlist=false` -> unchanged `409 SLOT_CONFLICT` with alternatives. `join_waitlist=true` -> `201` BookingRequest with `status:"waitlisted"` (priority computed, audit event `queue_joined`, notification `waitlist_joined`), no booking created.
   - A unit is free: normal `pending_review` request (join_waitlist ignored).
   - Duplicate active request (same requester_name + project_title + equipment + overlapping window, status pending_review/waitlisted/alternative_proposed) -> `400 VALIDATION_ERROR` with reason "You already have an active request for this equipment in an overlapping window."
 - Transitions from `waitlisted`: approve (transactional re-check; 409 SLOT_CONFLICT if still no unit), reject (reason required), propose alternative -> `alternative_proposed`, cancel/leave queue (`POST /booking-requests/{id}/cancel`) -> `cancelled`. Cancelled/rejected/expired are excluded from scheduling.
-- `BookingRequest` detail gains `queue_position: number | null` (**estimated**, only for waitlisted: rank among waitlisted requests for the same equipment type by priority_score desc, then created_at asc; may change).
-- `GET /booking-requests?status=waitlisted` works. `GET /approvals/queue` default statuses become `pending_review,waitlisted,alternative_proposed`.
+- `BookingRequest` carries `queue_position: number | null` (**estimated**, only for waitlisted: rank among waitlisted requests for the same equipment type by priority_score desc, then created_at asc; may change).
+- `GET /booking-requests?status=waitlisted` works. `GET /approvals/queue` default statuses are `pending_review,waitlisted,alternative_proposed` (same as in the Scheduling & approvals section).
 - Scheduling (`POST /scheduling/recommendations`, `GET /scheduling/conflicts`) treats `waitlisted` like `pending_review`. Recommendation runs never create bookings or change request status.
-- `GET /analytics/overview` gains `waitlisted_count`.
+- `GET /analytics/overview` includes `waitlisted_count`.
 
 
 ## Controlled demo reset (roadmap H.5)
