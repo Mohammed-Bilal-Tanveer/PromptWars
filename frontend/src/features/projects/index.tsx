@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Button, Card, Chip, Field, Input, Modal, Notice, PageHeader, ProgressBar, Select, StatusChip, Textarea, errorMessage,
+  Button, Card, Chip, Field, Input, Modal, Notice, PageHeader, ProgressBar, Select, StatusChip, Textarea, errorMessage, cx,
+  IconAlert, IconClock, IconDot, IconPlus, IconX,
 } from '@/components/ui'
 import { ApiError } from '@/services/apiClient'
 import { useAnalyseProject, useCreateProject, useDepartments } from '@/hooks/useApi'
@@ -28,20 +29,20 @@ function analyseErrorMessage(e: unknown): string {
 
 function CandidateView({ c, onView, onBook }: { c: MatchCandidate; onView: () => void; onBook: () => void }) {
   return (
-    <div className="rounded-xl border border-line p-3 text-sm">
+    <div className="rounded-xl border border-line bg-surface2/50 p-3.5 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="break-words font-semibold">{c.name}</p>
           <p className="text-xs text-muted">{c.laboratory_name} · {c.department_name} · {c.building}, {c.room_label}</p>
         </div>
-        <Chip tone={c.is_available ? 'ok' : 'warn'} icon={c.is_available ? '●' : '◐'}>{c.available_units}/{c.total_units} units available</Chip>
+        <Chip tone={c.is_available ? 'ok' : 'warn'} icon={c.is_available ? <IconDot size={10} /> : <IconClock size={13} strokeWidth={2} />}>{c.available_units}/{c.total_units} units available</Chip>
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-3">
         <div className="w-full max-w-48"><ProgressBar value={c.score} label={`Match score for ${c.name}`} gradient="ai" /></div>
-        <span className="text-xs font-semibold">Match score {Math.round(c.score)}/100</span>
+        <span className="tnum text-xs font-medium text-muted">Match score <span className="text-fg">{Math.round(c.score)}</span>/100</span>
       </div>
       {c.evidence.length > 0 && (
-        <ul className="mt-2 list-disc pl-5 text-xs text-muted">
+        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-muted marker:text-subtle">
           {c.evidence.map((ev, i) => <li key={i}>{ev}</li>)}
         </ul>
       )}
@@ -58,7 +59,7 @@ function MatchCard({ m, onView, onBook }: { m: RequirementMatch; onView: (id: st
   return (
     <Card as="article" aria-label={m.requirement_name}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h4 className="font-bold">{m.requirement_name}</h4>
+        <h4 className="font-semibold">{m.requirement_name}</h4>
         <div className="flex flex-wrap gap-1.5">
           <StatusChip status={m.priority} />
           <StatusChip status={m.match_status} />
@@ -71,11 +72,11 @@ function MatchCard({ m, onView, onBook }: { m: RequirementMatch; onView: (id: st
         </Notice></div>
       ) : (
         <div className="mt-3 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Best candidate</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-subtle">Best candidate</p>
           <CandidateView c={m.best} onView={() => onView(m.best!.equipment_type_id)} onBook={() => onBook(m.best!.equipment_type_id)} />
           {others.length > 0 && (
             <details>
-              <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Other candidates ({others.length})</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center py-2 text-sm font-medium text-muted hover:text-fg">Other candidates ({others.length})</summary>
               <div className="space-y-2">
                 {others.map((c) => (
                   <CandidateView key={c.equipment_type_id} c={c} onView={() => onView(c.equipment_type_id)} onBook={() => onBook(c.equipment_type_id)} />
@@ -225,14 +226,16 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
       {!embedded && (
         <PageHeader
           title="Project Lab"
-          gradient="ai"
-          subtitle="Describe your project and let the AI analyser work out which campus equipment you need."
+          subtitle="Describe your project and we'll match it to campus equipment."
         />
       )}
       <Card as="section" aria-label="Project details">
-        <form onSubmit={submit} noValidate className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold">Your project</h2>
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
+            <div>
+              <h2 className="text-base font-semibold sm:text-[17px]">Your project</h2>
+              <p className="mt-0.5 text-sm text-muted">A few plain sentences are enough. Optional fields help the scheduler later.</p>
+            </div>
             <Button type="button" variant="secondary" onClick={useSample}>Use sample project</Button>
           </div>
           <Field label="Project title" htmlFor="pl-title" error={errors.title}>
@@ -240,7 +243,7 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
           </Field>
           <Field label="Description" htmlFor="pl-desc" error={errors.description} hint="What are you building and what do you need to test or make?">
             <Textarea id="pl-desc" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} aria-invalid={!!errors.description} />
-            <p className={`text-right text-xs ${description.length > MAX_DESC ? 'text-rose-300' : 'text-muted'}`} aria-live="polite">{description.length}/{MAX_DESC}</p>
+            <p className={`tnum text-right text-xs ${description.length > MAX_DESC ? 'font-medium text-red-700' : 'text-subtle'}`} aria-live="polite">{description.length}/{MAX_DESC}</p>
           </Field>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Category" htmlFor="pl-cat">
@@ -257,11 +260,17 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
             </Field>
           </div>
           <fieldset>
-            <legend className="text-sm font-semibold">Preferred departments (optional)</legend>
-            <div className="mt-1 flex flex-wrap gap-2">
+            <legend className="text-sm font-medium">Preferred departments (optional)</legend>
+            <div className="mt-1.5 flex flex-wrap gap-2">
               {depts.data?.map((d) => (
-                <label key={d.id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-line px-3 text-sm">
-                  <input type="checkbox" checked={prefDepts.includes(d.id)} onChange={() => toggleDept(d.id)} />
+                <label
+                  key={d.id}
+                  className={cx(
+                    'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors lg:min-h-10',
+                    prefDepts.includes(d.id) ? 'border-brand-muted bg-brand-subtle text-brand-fg' : 'border-line-strong bg-surface hover:bg-surface2',
+                  )}
+                >
+                  <input type="checkbox" className="h-4 w-4 accent-[#1d4ed8]" checked={prefDepts.includes(d.id)} onChange={() => toggleDept(d.id)} />
                   {d.name}
                 </label>
               ))}
@@ -269,19 +278,19 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
             </div>
           </fieldset>
           <div>
-            <p className="text-sm font-semibold">Preferred time window (optional)</p>
-            <div className="mt-1 grid gap-3 sm:grid-cols-3">
+            <p className="text-sm font-medium">Preferred time window (optional)</p>
+            <div className="mt-1.5 grid gap-3 rounded-xl border border-line bg-surface2/50 p-3 sm:grid-cols-3">
               <Field label="Preferred date" htmlFor="pl-pdate"><Input id="pl-pdate" type="date" min={campusDate()} value={prefDate} onChange={(e) => setPrefDate(e.target.value)} /></Field>
               <Field label="Start time" htmlFor="pl-pstart"><Input id="pl-pstart" type="time" value={prefStart} onChange={(e) => setPrefStart(e.target.value)} /></Field>
               <Field label="End time" htmlFor="pl-pend"><Input id="pl-pend" type="time" value={prefEnd} onChange={(e) => setPrefEnd(e.target.value)} /></Field>
             </div>
-            {errors.window && <p role="alert" className="mt-1 text-xs font-medium text-rose-300">⚠ {errors.window}</p>}
+            {errors.window && <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-red-700"><IconAlert size={14} /> {errors.window}</p>}
           </div>
           <Field label="Constraints (optional)" htmlFor="pl-constraints">
             <Textarea id="pl-constraints" rows={2} value={constraints} onChange={(e) => setConstraints(e.target.value)} />
           </Field>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="ai" size="lg" loading={analyse.isPending}>Analyse project</Button>
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+            <Button type="submit" variant="primary" size="lg" loading={analyse.isPending}>Analyse project</Button>
             {analyse.isPending && <span className="text-sm text-muted" role="status">Analysing… this can take a few seconds.</span>}
           </div>
         </form>
@@ -303,10 +312,10 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
             )}
 
             <Card>
-              <h3 className="text-lg font-bold">Project summary</h3>
-              <p className="mt-1 text-sm text-muted">{result.project_summary}</p>
+              <h3 className="text-base font-semibold sm:text-[17px]">Project summary</h3>
+              <p className="mt-1.5 max-w-3xl text-[15px] leading-relaxed text-muted">{result.project_summary}</p>
               <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Capabilities">
-                {result.capabilities.map((c) => <Chip key={c} tone="ai">{c.replace(/_/g, ' ')}</Chip>)}
+                {result.capabilities.map((c) => <Chip key={c} tone="neutral">{c.replace(/_/g, ' ')}</Chip>)}
               </div>
               {result.reasoning_summary && <p className="mt-3 text-xs text-muted">{result.reasoning_summary}</p>}
               {result.suggested_departments.length > 0 && (
@@ -316,7 +325,7 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
 
             <div className="grid gap-4 lg:grid-cols-2">
               <Card as="section" aria-label="Assumptions">
-                <h3 className="font-bold">Assumptions (editable)</h3>
+                <h3 className="font-semibold">Assumptions (editable)</h3>
                 <Field label="Estimated total hours" htmlFor="pl-esthours" className="mt-2 max-w-48">
                   <Input id="pl-esthours" type="number" min={0} step="0.5" value={estHours} onChange={(e) => setEstHours(e.target.value)} />
                 </Field>
@@ -324,12 +333,12 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
                   {assumptions.map((a, i) => (
                     <li key={i} className="flex items-center gap-2">
                       <Input aria-label={`Assumption ${i + 1}`} value={a} onChange={(e) => setAssumptions((s) => s.map((x, j) => (j === i ? e.target.value : x)))} />
-                      <Button type="button" variant="ghost" size="sm" aria-label={`Remove assumption ${i + 1}`} onClick={() => setAssumptions((s) => s.filter((_, j) => j !== i))}>✕</Button>
+                      <Button type="button" variant="ghost" size="sm" aria-label={`Remove assumption ${i + 1}`} onClick={() => setAssumptions((s) => s.filter((_, j) => j !== i))}><IconX size={16} /></Button>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setAssumptions((s) => [...s, ''])}>Add assumption</Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setAssumptions((s) => [...s, ''])}><IconPlus size={16} /> Add assumption</Button>
                   {!onBook && (
                     <Button type="button" size="sm" loading={createProject.isPending} disabled={!!projectId} onClick={() => {
                       const n = store.requester.name.trim()
@@ -343,15 +352,15 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
               </Card>
               <div className="space-y-4">
                 <Card as="section" aria-label="Safety considerations">
-                  <h3 className="font-bold">Safety considerations</h3>
-                  {result.safety_considerations.length === 0 ? <p className="text-sm text-muted">None identified.</p> : (
-                    <ul className="mt-1 list-disc pl-5 text-sm text-muted">{result.safety_considerations.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                  <h3 className="font-semibold">Safety considerations</h3>
+                  {result.safety_considerations.length === 0 ? <p className="mt-1 text-sm text-muted">None identified.</p> : (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted marker:text-subtle">{result.safety_considerations.map((s, i) => <li key={i}>{s}</li>)}</ul>
                   )}
                 </Card>
                 <Card as="section" aria-label="Clarifying questions">
-                  <h3 className="font-bold">Clarifying questions</h3>
-                  {result.clarifying_questions.length === 0 ? <p className="text-sm text-muted">None.</p> : (
-                    <ul className="mt-1 list-disc pl-5 text-sm text-muted">{result.clarifying_questions.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                  <h3 className="font-semibold">Clarifying questions</h3>
+                  {result.clarifying_questions.length === 0 ? <p className="mt-1 text-sm text-muted">None.</p> : (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted marker:text-subtle">{result.clarifying_questions.map((s, i) => <li key={i}>{s}</li>)}</ul>
                   )}
                 </Card>
               </div>
@@ -361,7 +370,7 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
               const list = requirements(kind)
               return (
                 <section key={kind} aria-label={`${kind} equipment`}>
-                  <h3 className="mb-2 text-lg font-bold">{kind === 'required' ? 'Required equipment' : 'Recommended and optional equipment'}</h3>
+                  <h3 className="mb-3 text-base font-semibold sm:text-[17px]">{kind === 'required' ? 'Required equipment' : 'Recommended and optional equipment'}</h3>
                   {list.length === 0 ? <p className="text-sm text-muted">None.</p> : (
                     <div className="grid gap-3 xl:grid-cols-2">
                       {list.map((m, i) => <MatchCard key={`${m.requirement_name}-${i}`} m={m} onView={view} onBook={requestBooking} />)}
@@ -391,7 +400,7 @@ export function ProjectLab({ embedded, onViewMatch, onBook }: { embedded?: boole
           <p className="text-sm text-muted">Enter your name so the project and booking request can be saved. No account is needed.</p>
           <Field label="Your name" htmlFor="pl-reqname"><Input id="pl-reqname" value={nameInput} onChange={(e) => setNameInput(e.target.value)} autoFocus /></Field>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setNameFor(null)}>Cancel</Button>
+            <Button type="button" variant="secondary" onClick={() => setNameFor(null)}>Cancel</Button>
             <Button type="submit" disabled={!nameInput.trim()}>Continue</Button>
           </div>
         </form>

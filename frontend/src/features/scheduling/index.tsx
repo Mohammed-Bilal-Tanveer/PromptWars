@@ -1,5 +1,8 @@
 import { useState } from 'react'
-import { Button, Card, Chip, EmptyState, Field, Input, Modal, Notice, QueryBoundary, Select, StatusChip } from '@/components/ui'
+import {
+  Button, Card, Chip, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, Select, StatusChip,
+  IconAlert, IconCheckCircle, IconInfo, IconSearch, IconSliders,
+} from '@/components/ui'
 import { useBookingRequests, useConflicts, useEquipmentList, useProposeAlternative, useRecommend } from '@/hooks/useApi'
 import { useAppStore, toast } from '@/stores/appStore'
 import { campusDateOf, campusTimeOf, formatRange, localISO } from '@/lib/format'
@@ -10,17 +13,17 @@ import type { Alternative, Conflict, SchedulingResponse, SchedulingResult } from
 const SEV_TONE = { high: 'danger', medium: 'warn', low: 'info' } as const
 
 function ConflictList({ items }: { items: Conflict[] }) {
-  if (!items.length) return <p className="text-sm text-muted">No conflicts detected.</p>
+  if (!items.length) return <p className="flex items-center gap-2 text-sm text-muted"><IconCheckCircle size={18} className="text-emerald-600" />No conflicts detected.</p>
   return (
     <ul className="space-y-2">
       {items.map((c) => (
-        <li key={c.id} className="rounded-xl border border-line bg-bg p-3 text-sm">
+        <li key={c.id} className="rounded-xl border border-line bg-surface p-3.5 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <Chip tone={SEV_TONE[c.severity]} icon={c.severity === 'high' ? '▲' : c.severity === 'medium' ? '◆' : '●'}>{c.severity} severity</Chip>
-            <span className="font-semibold">{c.equipment_name}</span>
-            <span className="text-muted">{formatRange(c.start_at, c.end_at)}</span>
+            <Chip tone={SEV_TONE[c.severity]} icon={c.severity === 'low' ? <IconInfo size={13} strokeWidth={2} /> : <IconAlert size={13} strokeWidth={2} />}>{c.severity} severity</Chip>
+            <span className="font-medium">{c.equipment_name}</span>
+            <span className="tnum text-muted">{formatRange(c.start_at, c.end_at)}</span>
           </div>
-          <p className="mt-1">{c.message}</p>
+          <p className="mt-1.5 text-muted">{c.message}</p>
         </li>
       ))}
     </ul>
@@ -97,6 +100,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
 
   return (
     <div className="space-y-5">
+      {!embedded && <PageHeader title="Scheduling Studio" subtitle="Spot conflicts, then let the solver suggest fair slots for pending requests or a new booking." />}
       <Notice tone="info" title="Recommendations only">
         The solver suggests slots; nothing is booked or approved automatically. Use the booking form or approval desk to act on a suggestion.
       </Notice>
@@ -115,7 +119,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
             <p className="text-sm text-muted">
               Jointly allocate all {pending.data?.total ?? 0} pending or alternative-proposed requests over the next 7 days.
             </p>
-            <Button onClick={optimise} loading={recommend.isPending} disabled={pending.isLoading}>Optimise pending requests</Button>
+            <div className="pt-1"><Button onClick={optimise} loading={recommend.isPending} disabled={pending.isLoading}><IconSliders size={18} /> Optimise pending requests</Button></div>
           </Section>
         </Card>
 
@@ -141,8 +145,8 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
                   <Input id="ss-we" type="datetime-local" value={wEnd} onChange={(e) => setWEnd(e.target.value)} />
                 </Field>
               </div>
-              {formErr && <p role="alert" className="text-sm text-rose-300">⚠ {formErr}</p>}
-              <Button type="submit" loading={recommend.isPending}>Find slots</Button>
+              {formErr && <p role="alert" className="flex items-center gap-1.5 text-sm font-medium text-red-700"><IconAlert size={16} /> {formErr}</p>}
+              <div className="pt-1"><Button type="submit" variant="secondary" loading={recommend.isPending}><IconSearch size={18} /> Find slots</Button></div>
             </Section>
           </form>
         </Card>
@@ -156,7 +160,7 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
             {resp.results.map((r, i) => (
               <ResultCard key={`${r.request_id ?? 'adhoc'}-${i}`} r={r} weights={resp.weights} onUse={useSlot} busy={propose.isPending} />
             ))}
-            <p className="text-xs text-muted" data-testid="solver-footer">
+            <p className="rounded-lg bg-surface2 px-3 py-2 text-xs text-muted" data-testid="solver-footer">
               Solved with OR-Tools CP-SAT in {Math.round(resp.solve_time_ms)} ms (status: {resp.solver_status}) — recommendation only, nothing is booked automatically.
             </p>
           </>
@@ -165,14 +169,14 @@ export function SchedulingStudio({ embedded }: { embedded?: boolean }) {
 
       <Card>
         <Section title="How the priority score works">
-          <p className="text-sm">
+          <p className="rounded-lg border border-line bg-surface2/60 px-3 py-2 font-mono text-[13px] text-fg">
             Score = 0.40 × deadline urgency + 0.25 × waiting time + 0.20 × fairness + 0.15 × preference fit. Each factor is normalised between 0 and 1.
           </p>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-            <li><strong>Deadline urgency</strong> rises as the deadline approaches.</li>
-            <li><strong>Waiting time</strong> rises the longer a request has been pending.</li>
-            <li><strong>Fairness</strong> is higher for requesters and departments with fewer recently allocated hours (last 14 days). Identity never earns a bonus.</li>
-            <li><strong>Preference fit</strong> rewards slots close to the requested time and unit.</li>
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted marker:text-subtle">
+            <li><strong className="font-medium text-fg">Deadline urgency</strong> rises as the deadline approaches.</li>
+            <li><strong className="font-medium text-fg">Waiting time</strong> rises the longer a request has been pending.</li>
+            <li><strong className="font-medium text-fg">Fairness</strong> is higher for requesters and departments with fewer recently allocated hours (last 14 days). Identity never earns a bonus.</li>
+            <li><strong className="font-medium text-fg">Preference fit</strong> rewards slots close to the requested time and unit.</li>
           </ul>
         </Section>
       </Card>
@@ -189,8 +193,8 @@ function ResultCard({ r, weights, onUse, busy }: { r: SchedulingResult; weights:
     <Card className="space-y-4" aria-label={`Result for ${r.equipment_name}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="font-bold">{r.equipment_name}</h3>
-          <p className="text-xs text-muted">{r.request_id ? `Request ${r.request_id}` : 'Ad-hoc search'}</p>
+          <h3 className="font-semibold">{r.equipment_name}</h3>
+          <p className="font-mono text-xs text-subtle">{r.request_id ? `Request ${r.request_id}` : 'Ad-hoc search'}</p>
         </div>
         <div className="flex items-center gap-2">
           <StatusChip status={r.allocation_status} />
@@ -198,14 +202,14 @@ function ResultCard({ r, weights, onUse, busy }: { r: SchedulingResult; weights:
         </div>
       </div>
       {r.recommended ? (
-        <p className="text-sm"><strong>Recommended:</strong> {r.recommended.unit_name} · {formatRange(r.recommended.start_at, r.recommended.end_at)}</p>
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950"><strong className="font-semibold">Recommended:</strong> {r.recommended.unit_name} · {formatRange(r.recommended.start_at, r.recommended.end_at)}</p>
       ) : (
         <p className="text-sm text-muted">No feasible slot was found for this request.</p>
       )}
       <div className="grid gap-4 md:grid-cols-2">
         <Section title="Priority factors"><FactorBars factors={r.priority_factors} weights={weights} /></Section>
         <Section title="Why this result">
-          <ul className="list-disc space-y-1 pl-5 text-sm">{r.explanation.map((x, i) => <li key={i}>{x}</li>)}</ul>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted marker:text-subtle">{r.explanation.map((x, i) => <li key={i}>{x}</li>)}</ul>
         </Section>
       </div>
       {r.conflicts.length > 0 && <Section title="Conflicts"><ConflictList items={r.conflicts} /></Section>}

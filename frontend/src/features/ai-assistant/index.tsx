@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, Chip, Modal, Notice, Textarea } from '@/components/ui'
+import { Button, Card, Chip, Modal, Notice, PageHeader, Textarea, IconAlert, IconInfo, IconMessage, IconSend, IconSliders } from '@/components/ui'
 import { useAssistant } from '@/hooks/useApi'
 import { useAppStore } from '@/stores/appStore'
 import { ROUTES } from '@/lib/routes'
@@ -75,8 +75,8 @@ export function AssistantPanel({ embedded, context }: { embedded?: boolean; cont
     else nav(ROUTES.projectLab)
   }
 
-  return (
-    <Card className={embedded ? 'flex flex-col gap-3' : 'mx-auto flex max-w-3xl flex-col gap-3'}>
+  const panel = (
+    <Card className={embedded ? 'flex flex-col gap-4' : 'flex flex-col gap-4'}>
       <Notice tone="info">The assistant gives suggestions only. It never books equipment — use the booking form to submit a request.</Notice>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
@@ -85,21 +85,26 @@ export function AssistantPanel({ embedded, context }: { embedded?: boolean; cont
         ))}
       </div>
 
-      <div className="max-h-[50vh] min-h-40 space-y-3 overflow-y-auto rounded-xl border border-line bg-bg p-3" role="log" aria-live="polite" aria-label="Conversation">
-        {msgs.length === 0 && <p className="text-sm text-muted">Ask about equipment, availability or alternatives.</p>}
+      <div className="max-h-[50vh] min-h-48 space-y-3 overflow-y-auto rounded-xl border border-line bg-bg p-3 sm:p-4" role="log" aria-live="polite" aria-label="Conversation">
+        {msgs.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-surface text-subtle shadow-card" aria-hidden><IconMessage size={20} /></span>
+            Ask about equipment, availability or alternatives.
+          </div>
+        )}
         {msgs.map((m, i) =>
           m.role === 'user' ? (
-            <div key={i} className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-sky-600/30 px-3 py-2 text-sm">{m.text}</div>
+            <div key={i} className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-brand px-3.5 py-2 text-sm text-white">{m.text}</div>
           ) : m.role === 'error' ? (
-            <div key={i} role="alert" className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">⚠ {m.text}</div>
+            <div key={i} role="alert" className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2 text-sm text-red-900"><IconAlert size={16} className="mt-0.5 shrink-0 text-red-600" /> {m.text}</div>
           ) : (
-            <div key={i} className="max-w-[95%] space-y-2 rounded-2xl border border-line bg-surface px-3 py-2 text-sm">
-              <p className="whitespace-pre-wrap break-words">{m.reply.reply}</p>
-              <div><Chip tone={m.reply.source === 'openai' ? 'ai' : 'neutral'} icon={m.reply.source === 'openai' ? '✨' : '⚙'}>{m.reply.source === 'openai' ? 'AI' : 'Rule-based answer'}</Chip></div>
+            <div key={i} className="max-w-[95%] space-y-2.5 rounded-2xl rounded-bl-md border border-line bg-surface px-3.5 py-2.5 text-sm shadow-card">
+              <p className="whitespace-pre-wrap break-words leading-relaxed">{m.reply.reply}</p>
+              <div><Chip tone={m.reply.source === 'openai' ? 'ai' : 'neutral'} icon={m.reply.source === 'openai' ? <IconInfo size={13} strokeWidth={2} /> : <IconSliders size={13} strokeWidth={2} />}>{m.reply.source === 'openai' ? 'AI-generated answer' : 'Rule-based answer'}</Chip></div>
               {m.reply.references.length > 0 && (
                 <div className="flex flex-wrap gap-1.5" aria-label="References">
                   {m.reply.references.map((r) => (
-                    <button key={`${r.type}-${r.id}`} type="button" onClick={() => refTo(r)} className="min-h-9 rounded-full border border-line bg-bg px-3 text-xs font-semibold hover:bg-surface2">
+                    <button key={`${r.type}-${r.id}`} type="button" onClick={() => refTo(r)} className="min-h-9 rounded-full border border-line-strong bg-surface px-3 text-xs font-medium text-fg hover:bg-surface2">
                       {r.label}
                     </button>
                   ))}
@@ -107,22 +112,22 @@ export function AssistantPanel({ embedded, context }: { embedded?: boolean; cont
               )}
               {m.reply.suggested_actions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {m.reply.suggested_actions.map((a, j) => <Button key={j} size="sm" variant="ai" onClick={() => act(a)}>{a.label}</Button>)}
+                  {m.reply.suggested_actions.map((a, j) => <Button key={j} size="sm" variant="secondary" onClick={() => act(a)}>{a.label}</Button>)}
                 </div>
               )}
             </div>
           ),
         )}
-        {ask.isPending && <p className="text-sm text-muted" role="status">Assistant is thinking…</p>}
+        {ask.isPending && <p className="text-sm text-muted" role="status">Looking that up…</p>}
         <div ref={end} />
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); send(text) }} className="space-y-2" aria-label="Ask the assistant">
-        <label htmlFor="as-msg" className="text-sm font-semibold">Your question</label>
+        <label htmlFor="as-msg" className="block text-sm font-medium">Your question</label>
         <Textarea id="as-msg" value={text} maxLength={MAX} className="min-h-20" onChange={(e) => setText(e.target.value)} placeholder="e.g. Which equipment can I use for computer vision?" />
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted">{text.length}/{MAX}</span>
-          <Button type="submit" variant="ai" loading={ask.isPending} disabled={!text.trim()}>Send</Button>
+          <span className="tnum text-xs text-subtle">{text.length}/{MAX}</span>
+          <Button type="submit" variant="primary" loading={ask.isPending} disabled={!text.trim()}><IconSend size={16} /> Send</Button>
         </div>
       </form>
 
@@ -130,5 +135,12 @@ export function AssistantPanel({ embedded, context }: { embedded?: boolean; cont
         {formFor && <BookingForm equipmentId={formFor} embedded onCancel={() => setFormFor(null)} />}
       </Modal>
     </Card>
+  )
+  if (embedded) return panel
+  return (
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title="Assistant" subtitle="Ask where to find equipment, why something is unavailable, or what the earliest alternatives are." />
+      {panel}
+    </div>
   )
 }

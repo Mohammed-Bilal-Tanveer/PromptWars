@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   Button, Card, Chip, ConfirmDialog, EmptyState, ErrorState, Field, Input, LoadingState, Modal, Notice, PageHeader,
-  QueryBoundary, Select, StatusChip, errorMessage,
+  QueryBoundary, Select, StatusChip, errorMessage, IconArrowLeft, IconArrowRight, IconEye, IconMapPin, IconX,
 } from '@/components/ui'
 import {
   useAvailability, useDepartments, useEquipmentCategories, useEquipmentDetail, useEquipmentList, useLaboratories, useSetUnitStatus,
@@ -19,24 +19,24 @@ const cap = (c: string) => c.replace(/_/g, ' ')
 
 function EquipmentCard({ e }: { e: EquipmentType }) {
   return (
-    <Card as="article" className="flex h-full flex-col" aria-label={e.name}>
+    <Card as="article" className="flex h-full flex-col transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-raised" aria-label={e.name}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="min-w-0 break-words font-bold">
-          <Link to={ROUTES.equipment(e.id)} className="hover:underline">{e.name}</Link>
+        <h3 className="min-w-0 break-words font-semibold leading-snug">
+          <Link to={ROUTES.equipment(e.id)} className="hover:text-brand hover:underline">{e.name}</Link>
         </h3>
         <StatusChip status={e.status} />
       </div>
-      <p className="mt-1 text-xs text-muted">{e.category}</p>
-      <p className="mt-2 text-sm">{e.quantity_available} of {e.quantity_total} units free</p>
-      <p className="mt-1 text-xs text-muted">{e.laboratory_name} · {e.department_name}</p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {e.capabilities.slice(0, 4).map((c) => <Chip key={c} tone="ai">{cap(c)}</Chip>)}
+      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-subtle">{e.category}</p>
+      <p className="mt-3 text-sm"><span className="tnum font-semibold">{e.quantity_available}</span> of <span className="tnum">{e.quantity_total}</span> units free</p>
+      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted"><IconMapPin size={14} className="shrink-0 text-subtle" />{e.laboratory_name} · {e.department_name}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {e.capabilities.slice(0, 4).map((c) => <Chip key={c} tone="neutral">{cap(c)}</Chip>)}
       </div>
-      <div className="mt-auto pt-3">
-        <Link to={ROUTES.equipment(e.id)} className="inline-flex min-h-11 items-center font-semibold text-sky-300 underline">
-          View details<span className="sr-only"> for {e.name}</span>
+      <div className="mt-auto pt-4"><div className="border-t border-line pt-1">
+        <Link to={ROUTES.equipment(e.id)} className="link mt-2 inline-flex min-h-11 items-center gap-1 text-sm no-underline hover:underline lg:min-h-9">
+          View details<span className="sr-only"> for {e.name}</span> <IconArrowRight size={16} />
         </Link>
-      </div>
+      </div></div>
     </Card>
   )
 }
@@ -145,7 +145,7 @@ export function EquipmentCatalogue() {
             <Input id="eq-to" type="time" value={to} onChange={(e) => upd(setTo)(e.target.value)} />
           </Field>
           <div className="flex items-end">
-            <Button variant="ghost" onClick={reset}>Clear filters</Button>
+            <Button variant="secondary" onClick={reset} className="w-full sm:w-auto">Clear filters</Button>
           </div>
         </div>
       </Card>
@@ -160,13 +160,13 @@ export function EquipmentCatalogue() {
         ) : (
           list.data && (
             <>
-              <p className="mb-2 text-sm text-muted">{list.data.total} result{list.data.total === 1 ? '' : 's'}</p>
+              <p className="mb-3 text-sm text-muted"><span className="tnum font-medium text-fg">{list.data.total}</span> result{list.data.total === 1 ? '' : 's'}</p>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {list.data.items.map((e) => <EquipmentCard key={e.id} e={e} />)}
               </div>
-              <nav aria-label="Pagination" className="mt-4 flex items-center justify-center gap-3">
+              <nav aria-label="Pagination" className="mt-6 flex items-center justify-center gap-3">
                 <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                <span className="text-sm text-muted">Page {page} of {totalPages}</span>
+                <span className="tnum text-sm text-muted">Page {page} of {totalPages}</span>
                 <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
               </nav>
             </>
@@ -191,7 +191,7 @@ function AvailabilityTimeline({ equipmentId }: { equipmentId: string }) {
   return (
     <Card as="section" aria-label="Availability">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h3 className="text-lg font-bold">Availability</h3>
+        <h3 className="text-base font-semibold sm:text-[17px]">Availability</h3>
         <Field label="Date" htmlFor={`av-date-${equipmentId}`}>
           <Input id={`av-date-${equipmentId}`} type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
         </Field>
@@ -212,27 +212,34 @@ function AvailabilityTimeline({ equipmentId }: { equipmentId: string }) {
             const pos = (iso: string) => Math.min(100, Math.max(0, ((new Date(iso).getTime() - t0) / span) * 100))
             return (
               <div className="space-y-3">
-                <p className="text-xs text-muted">Open {formatTime(a.lab_open_at)}–{formatTime(a.lab_close_at)} ({a.timezone}). Hatched/amber bars are busy.</p>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <p className="text-xs text-muted">Open {formatTime(a.lab_open_at)}–{formatTime(a.lab_close_at)} ({a.timezone})</p>
+                  <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted" aria-label="Legend">
+                    <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-emerald-300 bg-emerald-100" aria-hidden />Free</li>
+                    <li className="flex items-center gap-1.5"><span className="hatch-busy h-3 w-5 rounded-sm" aria-hidden />Booked</li>
+                    <li className="flex items-center gap-1.5"><span className="hatch-maint h-3 w-5 rounded-sm" aria-hidden />Maintenance</li>
+                  </ul>
+                </div>
                 {a.units.map((u) => (
                   <div key={u.unit_id}>
                     <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <span className="font-semibold">{u.unit_name} <span className="text-muted">({u.inventory_code})</span></span>
+                      <span className="font-medium">{u.unit_name} <span className="font-normal text-muted">({u.inventory_code})</span></span>
                       <StatusChip status={u.status} />
                     </div>
-                    <div className="relative h-5 w-full overflow-hidden rounded bg-emerald-500/20" role="img"
+                    <div className="relative h-6 w-full overflow-hidden rounded-md border border-emerald-200 bg-emerald-50" role="img"
                       aria-label={`${u.unit_name}: ${u.busy.length === 0 ? 'free all day' : u.busy.map((b) => `${b.kind} ${formatTime(b.start_at)} to ${formatTime(b.end_at)}`).join(', ')}`}>
                       {u.busy.map((b, i) => (
                         <div
                           key={i}
                           title={`${b.label} ${formatTime(b.start_at)}–${formatTime(b.end_at)}`}
-                          className={b.kind === 'maintenance' ? 'absolute inset-y-0 bg-rose-500/80' : 'absolute inset-y-0 bg-amber-500/80'}
+                          className={b.kind === 'maintenance' ? 'hatch-maint absolute inset-y-0' : 'hatch-busy absolute inset-y-0'}
                           style={{ left: `${pos(b.start_at)}%`, width: `${Math.max(1, pos(b.end_at) - pos(b.start_at))}%` }}
                         />
                       ))}
                     </div>
                   </div>
                 ))}
-                <div className="flex justify-between text-[10px] text-muted" aria-hidden>
+                <div className="tnum flex justify-between text-xs text-subtle" aria-hidden>
                   <span>{formatTime(a.lab_open_at)}</span><span>{formatTime(a.lab_close_at)}</span>
                 </div>
                 <div>
@@ -248,7 +255,7 @@ function AvailabilityTimeline({ equipmentId }: { equipmentId: string }) {
                   )}
                 </div>
                 <details>
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Text list of busy periods</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-muted hover:text-fg">Text list of busy periods</summary>
                   <ul className="list-disc pl-5 text-sm text-muted">
                     {a.units.flatMap((u) => u.busy.map((b, i) => (
                       <li key={`${u.unit_id}-${i}`}>{u.unit_name}: {b.kind} {formatTime(b.start_at)}–{formatTime(b.end_at)} ({b.label})</li>
@@ -270,18 +277,18 @@ function DemoOperations({ equipmentId, units }: { equipmentId: string; units: { 
   const [pending, setPending] = useState<{ unitId: string; name: string; status: UnitStatus } | null>(null)
   const [sel, setSel] = useState<Record<string, UnitStatus>>({})
   return (
-    <details className="rounded-2xl border border-line bg-surface p-4" data-equipment={equipmentId}>
-      <summary className="min-h-11 cursor-pointer py-2 font-bold">Demo operations (simulation)</summary>
+    <details className="rounded-2xl border border-dashed border-line-strong bg-surface px-4 py-2 sm:px-5" data-equipment={equipmentId}>
+      <summary className="flex min-h-11 cursor-pointer items-center py-2 font-semibold">Demo operations (simulation)</summary>
       <p className="text-sm text-muted">
         Demo simulation: change a unit status to see maintenance flow through availability, scheduling conflicts and the 3D scene.
         Existing confirmed bookings are not cancelled.
       </p>
-      <ul className="mt-3 space-y-2">
+      <ul className="mb-3 mt-3 space-y-3">
         {units.map((u) => {
           const value = sel[u.id] ?? u.status
           return (
             <li key={u.id} className="flex flex-wrap items-end gap-2">
-              <span className="min-w-28 text-sm font-semibold">{u.unit_name}</span>
+              <span className="min-w-28 pb-2.5 text-sm font-medium">{u.unit_name}</span>
               <Field label={`Status of ${u.unit_name}`} htmlFor={`us-${u.id}`}>
                 <Select id={`us-${u.id}`} value={value} onChange={(e) => setSel((s) => ({ ...s, [u.id]: e.target.value as UnitStatus }))}>
                   {UNIT_STATUSES.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
@@ -329,62 +336,63 @@ export function EquipmentDetailPanel({ equipmentId, onBook, onClose, embedded }:
         <div className="space-y-4">
           {embedded ? (
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-lg font-bold">{e.name}</h2>
-              {onClose && <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close equipment panel">✕</Button>}
+              <h2 className="text-lg font-semibold">{e.name}</h2>
+              {onClose && <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close equipment panel"><IconX size={18} /></Button>}
             </div>
           ) : (
             <PageHeader
               title={e.name}
               subtitle={<>{e.category} · {e.manufacturer} {e.model}</>}
-              actions={onClose ? <Button variant="ghost" onClick={onClose}>Close</Button> : <Link to={ROUTES.discover} className="inline-flex min-h-11 items-center font-semibold text-sky-300 underline">Back to catalogue</Link>}
+              actions={onClose ? <Button variant="ghost" onClick={onClose}>Close</Button> : <Link to={ROUTES.discover} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface2 hover:text-fg"><IconArrowLeft size={16} />Back to catalogue</Link>}
             />
           )}
 
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={e.status} />
             <Chip tone="avail">{e.quantity_available}/{e.quantity_total} units free</Chip>
-            {e.requires_supervision && <Chip tone="warn" icon="👁">Supervision required</Chip>}
+            {e.requires_supervision && <Chip tone="warn" icon={<IconEye size={13} strokeWidth={2} />}>Supervision required</Chip>}
             <Chip>Utilisation {pct(e.utilisation_pct)}</Chip>
             {e.next_free_at && <Chip>Next free {formatDateTime(e.next_free_at)}</Chip>}
           </div>
-          <p className="text-sm text-muted">{e.description}</p>
-          <p className="text-sm text-muted">
-            <Link to={ROUTES.lab(e.laboratory_id)} className="font-semibold text-sky-300 underline">{e.laboratory_name}</Link> · {e.department_name}
+          <p className="max-w-3xl text-[15px] leading-relaxed text-muted">{e.description}</p>
+          <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            <IconMapPin size={16} className="text-subtle" />
+            <Link to={ROUTES.lab(e.laboratory_id)} className="link">{e.laboratory_name}</Link> · {e.department_name}
           </p>
 
           <div className="flex flex-wrap gap-2">
             <Button size="lg" onClick={book}>Request booking</Button>
-            <Button variant="ai" aria-expanded={askOpen} onClick={() => setAskOpen((v) => !v)}>Ask the assistant</Button>
+            <Button variant="secondary" size="lg" aria-expanded={askOpen} onClick={() => setAskOpen((v) => !v)}>Ask the assistant</Button>
           </div>
           {askOpen && <Card><AssistantPanel embedded context={{ equipment_type_id: e.id }} /></Card>}
 
           <div className={embedded ? 'space-y-4' : 'grid gap-4 lg:grid-cols-2'}>
             <Card as="section" aria-label="Specifications">
-              <h3 className="font-bold">Specifications</h3>
+              <h3 className="font-semibold">Specifications</h3>
               {Object.keys(e.specifications).length === 0 ? <p className="text-sm text-muted">No specifications listed.</p> : (
-                <table className="mt-2 w-full text-sm">
+                <table className="mt-3 w-full text-sm">
                   <tbody>
                     {Object.entries(e.specifications).map(([k, v]) => (
                       <tr key={k} className="border-t border-line first:border-0">
-                        <th scope="row" className="py-1.5 pr-3 text-left align-top font-semibold text-muted">{humanize(k)}</th>
-                        <td className="break-words py-1.5">{String(v)}</td>
+                        <th scope="row" className="w-2/5 py-2 pr-3 text-left align-top font-medium text-muted">{humanize(k)}</th>
+                        <td className="break-words py-2">{String(v)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-              <h3 className="mt-4 font-bold">Capabilities</h3>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {e.capabilities.map((c) => <Chip key={c} tone="ai">{cap(c)}</Chip>)}
+              <h3 className="mt-5 font-semibold">Capabilities</h3>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {e.capabilities.map((c) => <Chip key={c} tone="neutral">{cap(c)}</Chip>)}
               </div>
             </Card>
             <Card as="section" aria-label="Safety, access and booking rules">
-              <h3 className="font-bold">Safety and access</h3>
-              <p className="mt-1 text-sm text-muted"><strong>Safety:</strong> {e.safety_notes || 'None listed.'}</p>
-              <p className="mt-1 text-sm text-muted"><strong>Access:</strong> {e.access_notes || 'None listed.'}</p>
-              <p className="mt-1 text-sm">{e.requires_supervision ? 'Supervision is required to use this equipment.' : 'No supervision required.'}</p>
-              <h3 className="mt-4 font-bold">Booking constraints</h3>
-              <ul className="mt-1 list-disc pl-5 text-sm text-muted">
+              <h3 className="font-semibold">Safety and access</h3>
+              <p className="mt-2 text-sm text-muted"><strong className="font-medium text-fg">Safety:</strong> {e.safety_notes || 'None listed.'}</p>
+              <p className="mt-1.5 text-sm text-muted"><strong className="font-medium text-fg">Access:</strong> {e.access_notes || 'None listed.'}</p>
+              <p className="mt-1.5 text-sm">{e.requires_supervision ? 'Supervision is required to use this equipment.' : 'No supervision required.'}</p>
+              <h3 className="mt-5 font-semibold">Booking constraints</h3>
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-muted marker:text-subtle">
                 <li>Minimum booking: {minutesToLabel(e.min_booking_minutes)}</li>
                 <li>Maximum booking: {minutesToLabel(e.max_booking_minutes)}</li>
                 <li>Setup buffer: {minutesToLabel(e.setup_minutes)}</li>
@@ -396,12 +404,12 @@ export function EquipmentDetailPanel({ equipmentId, onBook, onClose, embedded }:
           <AvailabilityTimeline equipmentId={e.id} />
 
           <Card as="section" aria-label="Units">
-            <h3 className="font-bold">Units</h3>
+            <h3 className="font-semibold">Units</h3>
             <ul className="mt-2 divide-y divide-line">
               {e.units.map((u) => (
-                <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                   <div className="min-w-0">
-                    <p className="font-semibold">{u.unit_name} <span className="font-normal text-muted">({u.inventory_code})</span></p>
+                    <p className="font-medium">{u.unit_name} <span className="font-normal text-muted">({u.inventory_code})</span></p>
                     <p className="text-xs text-muted">
                       {u.current_booking ? `In use until ${formatTime(u.current_booking.end_at)} (${u.current_booking.project_title}). ` : u.is_free_now ? 'Free now. ' : ''}
                       {u.next_booking_at ? `Next booking ${formatDateTime(u.next_booking_at)}.` : 'No upcoming bookings.'}
@@ -415,12 +423,12 @@ export function EquipmentDetailPanel({ equipmentId, onBook, onClose, embedded }:
           </Card>
 
           <Card as="section" aria-label="Upcoming bookings">
-            <h3 className="font-bold">Upcoming bookings</h3>
+            <h3 className="font-semibold">Upcoming bookings</h3>
             {e.upcoming_bookings.length === 0 ? <p className="text-sm text-muted">No upcoming confirmed bookings.</p> : (
               <ul className="mt-2 divide-y divide-line text-sm">
                 {e.upcoming_bookings.map((b) => (
                   <li key={b.id} className="py-2">
-                    <span className="font-semibold">{b.project_title}</span> <span className="text-muted">· {b.unit_name} · {formatRange(b.start_at, b.end_at)}</span>
+                    <span className="font-medium">{b.project_title}</span> <span className="text-muted">· {b.unit_name} · {formatRange(b.start_at, b.end_at)}</span>
                   </li>
                 ))}
               </ul>
@@ -429,12 +437,12 @@ export function EquipmentDetailPanel({ equipmentId, onBook, onClose, embedded }:
 
           {e.alternatives.length > 0 && (
             <Card as="section" aria-label="Alternatives">
-              <h3 className="font-bold">Alternative equipment</h3>
+              <h3 className="font-semibold">Alternative equipment</h3>
               <ul className="mt-2 grid gap-2 sm:grid-cols-2">
                 {e.alternatives.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3 text-sm">
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3 text-sm hover:bg-surface2/60">
                     <div className="min-w-0">
-                      <Link to={ROUTES.equipment(a.id)} className="font-semibold text-sky-300 underline">{a.name}</Link>
+                      <Link to={ROUTES.equipment(a.id)} className="link">{a.name}</Link>
                       <p className="text-xs text-muted">{a.laboratory_name} · {a.quantity_available}/{a.quantity_total} free</p>
                     </div>
                     <StatusChip status={a.status} />

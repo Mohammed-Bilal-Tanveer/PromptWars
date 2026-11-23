@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, Chip, Field, Input, LoadingState, ErrorState, Notice, Select, StatusChip, Textarea } from '@/components/ui'
+import { Button, Chip, Field, Input, LoadingState, ErrorState, Notice, Select, StatusChip, Textarea, buttonCls, IconAlert, IconEye, IconInfo, IconSwap } from '@/components/ui'
 import { useAvailability, useCreateBookingRequest, useDepartments, useEquipmentDetail } from '@/hooks/useApi'
 import { useAppStore, toast } from '@/stores/appStore'
 import { campusDate, campusDateOf, campusTimeOf, localISO, minutesToLabel } from '@/lib/format'
@@ -121,15 +121,15 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
         <Notice tone="ok" title="Request submitted">
           Your request for {done.equipment_name} is waiting for the demo approval desk. Nothing is booked until it is approved.
         </Notice>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 rounded-xl border border-line p-4 text-sm">
           <dt className="text-muted">Request ID</dt>
-          <dd className="font-mono break-all">{done.id}</dd>
+          <dd className="break-all font-mono text-[13px]">{done.id}</dd>
           <dt className="text-muted">Status</dt>
           <dd><StatusChip status={done.status} /></dd>
         </dl>
         <div className="flex flex-wrap gap-2">
-          <Link to={ROUTES.requests} className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface2 px-4 text-sm font-semibold">My requests</Link>
-          <Link to={ROUTES.approvals} className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface2 px-4 text-sm font-semibold">Demo approval desk</Link>
+          <Link to={ROUTES.requests} className={buttonCls('primary')}>My requests</Link>
+          <Link to={ROUTES.approvals} className={buttonCls('secondary')}>Demo approval desk</Link>
           {onCancel && <Button variant="ghost" onClick={onCancel}>Close</Button>}
         </div>
       </div>
@@ -139,17 +139,17 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
   const freeUnits = av.data?.requested
   return (
     <form onSubmit={submit} noValidate className={embedded ? 'space-y-4' : 'max-w-3xl space-y-4'} aria-label={`Booking request for ${e.name}`}>
-      <div className="rounded-xl border border-line bg-bg p-3 text-sm">
-        <div className="font-bold">{e.name} <span className="font-normal text-muted">· {e.laboratory_name}</span></div>
-        <div className="mt-1 flex flex-wrap gap-1.5">
+      <div className="rounded-xl border border-line bg-surface2/60 p-3.5 text-sm">
+        <div className="font-semibold">{e.name} <span className="font-normal text-muted">· {e.laboratory_name}</span></div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
           <Chip tone="neutral">Min {minutesToLabel(e.min_booking_minutes)}</Chip>
           <Chip tone="neutral">Max {minutesToLabel(e.max_booking_minutes)}</Chip>
           <Chip tone="neutral">Setup {e.setup_minutes} min</Chip>
           <Chip tone="neutral">Cleanup {e.cleanup_minutes} min</Chip>
-          {e.requires_supervision && <Chip tone="warn" icon="⚠">Supervision required</Chip>}
+          {e.requires_supervision && <Chip tone="warn" icon={<IconEye size={13} strokeWidth={2} />}>Supervision required</Chip>}
         </div>
-        {e.requires_supervision && <p className="mt-2 text-xs text-amber-200">This equipment requires a supervisor present. The approval desk will check this before confirming.</p>}
-        {altNote && <p className="mt-2 text-xs text-sky-200">{altNote}</p>}
+        {e.requires_supervision && <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-900"><IconAlert size={14} className="mt-px shrink-0 text-amber-600" />This equipment requires a supervisor present. The approval desk will check this before confirming.</p>}
+        {altNote && <p className="mt-2 flex items-start gap-1.5 text-xs text-sky-900"><IconSwap size={14} className="mt-px shrink-0 text-sky-600" />{altNote}</p>}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -183,7 +183,7 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
       </div>
 
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Duration quick pick">
-        <span className="text-sm text-muted">Duration:</span>
+        <span className="text-sm font-medium text-muted">Duration</span>
         {quick.map((m) => (
           <Button key={m} type="button" size="sm" variant={duration === m ? 'primary' : 'secondary'} onClick={() => setEnd(fromMin(toMin(start || '09:00') + m))}>
             {minutesToLabel(m)}
@@ -193,13 +193,13 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
 
       <div aria-live="polite" className="text-sm">
         {windowOk ? (
-          av.isLoading ? <span className="text-muted">Checking availability…</span>
+          av.isLoading ? <span className="text-muted" role="status">Checking availability…</span>
           : freeUnits ? (
             freeUnits.is_available
               ? <Notice tone="ok">{freeUnits.free_units} unit{freeUnits.free_units === 1 ? '' : 's'} free for this window (advisory — final check happens on submit).</Notice>
               : <Notice tone="warn" title="Not available for this window">{freeUnits.reasons.length ? freeUnits.reasons.join(' ') : 'No free units in this window.'}</Notice>
           ) : null
-        ) : <span className="text-muted">Choose a valid start and end time to check availability.</span>}
+        ) : <span className="flex items-center gap-1.5 text-muted"><IconInfo size={16} className="text-subtle" />Choose a valid start and end time to check availability.</span>}
       </div>
 
       <Field label="Purpose" htmlFor="bf-purpose" error={errs.purpose}>
@@ -221,18 +221,18 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
           </Notice>
         )}
         {conflict && (
-          <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3" data-testid="conflict-panel">
-            <p className="font-semibold text-amber-200">Slot conflict</p>
-            <p className="text-sm">{conflict.message}</p>
-            {conflict.reasons.length > 0 && <ul className="list-disc pl-5 text-sm">{conflict.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
-            <p className="mt-2 text-sm font-semibold">Suggested alternatives</p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950" data-testid="conflict-panel">
+            <p className="flex items-center gap-2 font-semibold text-amber-900"><IconAlert size={18} className="text-amber-600" />Slot conflict</p>
+            <p className="mt-1 text-sm">{conflict.message}</p>
+            {conflict.reasons.length > 0 && <ul className="mt-1 list-disc pl-5 text-sm">{conflict.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
+            <p className="mb-2 mt-3 text-sm font-semibold">Suggested alternatives</p>
             <AlternativeList items={conflict.alternatives} onPick={applySlot} pickLabel="Use this slot" />
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2">
-        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
+      <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+        {onCancel && <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>}
         <Button type="submit" loading={create.isPending}>Submit request</Button>
       </div>
     </form>

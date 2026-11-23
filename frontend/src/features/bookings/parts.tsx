@@ -17,7 +17,7 @@ export function FactorBars({ factors, weights }: { factors: PriorityFactors; wei
     <ul className="space-y-2" aria-label="Priority factors">
       {(Object.keys(FACTOR_LABEL) as (keyof PriorityFactors)[]).map((k) => (
         <li key={k}>
-          <div className="mb-1 flex justify-between text-xs">
+          <div className="mb-1.5 flex justify-between text-xs">
             <span>
               {FACTOR_LABEL[k]}
               {weights && <span className="text-muted"> (weight {Math.round(weights[k] * 100)}%)</span>}
@@ -38,12 +38,12 @@ export function AlternativeList({
   return (
     <ul className="grid gap-2 sm:grid-cols-2">
       {items.map((a, i) => (
-        <li key={`${a.unit_id}-${a.start_at}-${i}`} className="rounded-xl border border-line bg-bg p-3 text-sm">
-          <div className="font-semibold">{formatRange(a.start_at, a.end_at)}</div>
+        <li key={`${a.unit_id}-${a.start_at}-${i}`} className="rounded-xl border border-line bg-surface p-3 text-sm text-fg shadow-card">
+          <div className="tnum font-semibold">{formatRange(a.start_at, a.end_at)}</div>
           <div className="text-muted">
             {a.equipment_name} · {a.unit_name}
           </div>
-          <div className="mt-1 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1">
             {a.is_alternative_equipment && <Chip tone="info">Different equipment</Chip>}
             <Chip tone="neutral">{a.shift_minutes === 0 ? 'Same time' : `${minutesToLabel(a.shift_minutes)} shift`}</Chip>
           </div>
@@ -62,16 +62,16 @@ export function AlternativeList({
 export function Timeline({ items }: { items: AuditItem[] }) {
   if (!items.length) return <p className="text-sm text-muted">No history yet.</p>
   return (
-    <ol className="space-y-3 border-l border-line pl-4">
+    <ol className="ml-1 space-y-4 border-l border-line-strong pl-5">
       {items.map((t) => (
         <li key={t.id} className="relative text-sm">
-          <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden />
-          <div className="font-semibold">{humanize(t.action)}</div>
+          <span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand ring-1 ring-brand-muted" aria-hidden />
+          <div className="font-medium">{humanize(t.action)}</div>
           <div className="text-muted">{t.description}</div>
-          <div className="text-xs text-muted">
+          <div className="mt-0.5 text-xs text-subtle">
             {t.actor} · {new Date(t.created_at).toLocaleString('en-GB')}
           </div>
-          {t.note && <div className="text-xs italic">“{t.note}”</div>}
+          {t.note && <div className="mt-1 rounded-md bg-surface2 px-2 py-1 text-xs italic text-muted">“{t.note}”</div>}
         </li>
       ))}
     </ol>
@@ -81,7 +81,7 @@ export function Timeline({ items }: { items: AuditItem[] }) {
 export function Section({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
     <section className={cx('space-y-2', className)}>
-      <h3 className="text-sm font-bold uppercase tracking-wide text-muted">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-subtle">{title}</h3>
       {children}
     </section>
   )

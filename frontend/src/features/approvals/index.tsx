@@ -1,5 +1,8 @@
 import { useState } from 'react'
-import { Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, QueryBoundary, Select, StatusChip, Textarea } from '@/components/ui'
+import {
+  Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, Select, StatusChip, Textarea, cx,
+  IconAlert, IconCheckSquare, IconEye,
+} from '@/components/ui'
 import { useApprovalQueue, useApprove, useBookingRequest, useDepartments, useEquipmentList, useProposeAlternative, useReject } from '@/hooks/useApi'
 import { toast } from '@/stores/appStore'
 import { formatRange, humanize, localISO, REQUEST_STATUS_LABEL } from '@/lib/format'
@@ -27,18 +30,25 @@ export function ApprovalDesk({ embedded }: { embedded?: boolean }) {
   const toggle = (s: string) => setStatuses((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]))
 
   return (
-    <div className="space-y-4">
-      <Notice tone="warn" title="Demo Approval Desk">
+    <div className="space-y-5">
+      {!embedded && <PageHeader title="Demo Approval Desk" subtitle="Review booking requests: approve, reject with a reason, or propose another slot." />}
+      <Notice tone="warn" title={embedded ? 'Demo Approval Desk' : 'Demo only'}>
         Demo Approval Desk — simulated reviewer workflow, public, no login; not for real institutional approvals.
       </Notice>
 
       <Card className="space-y-3">
         <fieldset>
-          <legend className="mb-1 text-sm font-semibold">Status</legend>
+          <legend className="mb-1.5 text-sm font-medium">Status</legend>
           <div className="flex flex-wrap gap-2">
             {STATUSES.map((s) => (
-              <label key={s} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg px-3 text-sm">
-                <input type="checkbox" checked={statuses.includes(s)} onChange={() => toggle(s)} />
+              <label
+                key={s}
+                className={cx(
+                  'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors lg:min-h-10',
+                  statuses.includes(s) ? 'border-brand-muted bg-brand-subtle text-brand-fg' : 'border-line-strong bg-surface hover:bg-surface2',
+                )}
+              >
+                <input type="checkbox" className="h-4 w-4 accent-[#1d4ed8]" checked={statuses.includes(s)} onChange={() => toggle(s)} />
                 {REQUEST_STATUS_LABEL[s]}
               </label>
             ))}
@@ -67,28 +77,28 @@ export function ApprovalDesk({ embedded }: { embedded?: boolean }) {
         <QueryBoundary query={queue} loadingLabel="Loading approval queue…">
           {(p) =>
             p.items.length === 0 ? (
-              <EmptyState icon="✅" title="The queue is empty" hint="No requests match these filters." />
+              <EmptyState icon={<IconCheckSquare size={22} />} title="The queue is empty" hint="No requests match these filters." />
             ) : (
               <ul className="space-y-3" aria-label="Approval queue">
                 {p.items.map((r) => (
                   <li key={r.id}>
-                    <Card className="flex flex-wrap items-center justify-between gap-3">
+                    <Card className="flex flex-wrap items-center justify-between gap-4 transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-raised">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold">{r.project_title}</span>
                           <StatusChip status={r.status} />
-                          {r.requires_supervision && <Chip tone="warn" icon="⚠">Supervision</Chip>}
+                          {r.requires_supervision && <Chip tone="warn" icon={<IconEye size={13} strokeWidth={2} />}>Supervision</Chip>}
                         </div>
-                        <p className="text-sm text-muted">{r.equipment_name} · {r.requester_name} ({r.requester_department_name})</p>
-                        <p className="text-sm">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
+                        <p className="mt-1 text-sm text-muted">{r.equipment_name} · {r.requester_name} ({r.requester_department_name})</p>
+                        <p className="tnum mt-0.5 text-sm font-medium">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
                         {r.availability_now && (
-                          <p className="text-xs text-muted">{r.availability_now.free_units} of {r.availability_now.total_units} units free in the requested window</p>
+                          <p className="mt-1 text-xs text-subtle">{r.availability_now.free_units} of {r.availability_now.total_units} units free in the requested window</p>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="text-center" aria-label={`Priority score ${Math.round(r.priority_score * 100)} percent`}>
-                          <div className="text-2xl font-extrabold tabular-nums">{Math.round(r.priority_score * 100)}</div>
-                          <div className="text-[10px] uppercase text-muted">priority</div>
+                        <div className="min-w-16 rounded-lg border border-line bg-surface2/60 px-3 py-1.5 text-center" aria-label={`Priority score ${Math.round(r.priority_score * 100)} percent`}>
+                          <div className="tnum text-xl font-semibold leading-tight">{Math.round(r.priority_score * 100)}</div>
+                          <div className="text-xs text-subtle">priority</div>
                         </div>
                         <Button variant="secondary" onClick={() => setSel(r.id)} aria-label={`Review ${r.project_title}`}>Review</Button>
                       </div>
@@ -144,20 +154,20 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
             <div className="flex flex-wrap items-center gap-2">
               <StatusChip status={r.status} />
               <Chip tone="ai">Priority {Math.round(r.priority_score * 100)}%</Chip>
-              {r.requires_supervision && <Chip tone="warn" icon="⚠">Supervision required</Chip>}
+              {r.requires_supervision && <Chip tone="warn" icon={<IconEye size={13} strokeWidth={2} />}>Supervision required</Chip>}
             </div>
             <div>
-              <h3 className="text-lg font-bold">{r.project_title}</h3>
-              <p className="text-sm text-muted">{r.equipment_name} · {r.laboratory_name}</p>
-              <p className="text-sm">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
-              <p className="mt-1 text-sm">{r.purpose}</p>
-              <p className="text-xs text-muted">{r.requester_name} ({r.requester_department_name}){r.deadline ? ` · deadline ${r.deadline.slice(0, 10)}` : ''}</p>
+              <h3 className="text-lg font-semibold">{r.project_title}</h3>
+              <p className="mt-0.5 text-sm text-muted">{r.equipment_name} · {r.laboratory_name}</p>
+              <p className="tnum mt-2 text-sm font-medium">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
+              <p className="mt-2 text-sm leading-relaxed">{r.purpose}</p>
+              <p className="mt-2 text-xs text-subtle">{r.requester_name} ({r.requester_department_name}){r.deadline ? ` · deadline ${r.deadline.slice(0, 10)}` : ''}</p>
             </div>
 
             {r.analysis && (
-              <Section title="Project context (AI analysis)">
-                <p className="text-sm">{r.analysis.project_summary}</p>
-                <div className="flex flex-wrap gap-1">{r.analysis.capabilities.map((c) => <Chip key={c} tone="ai">{humanize(c)}</Chip>)}</div>
+              <Section title="Project context (from Project Lab)">
+                <p className="text-sm leading-relaxed">{r.analysis.project_summary}</p>
+                <div className="flex flex-wrap gap-1">{r.analysis.capabilities.map((c) => <Chip key={c} tone="neutral">{humanize(c)}</Chip>)}</div>
                 {r.analysis.matches.length > 0 && (
                   <p className="text-xs text-muted">Matches: {r.analysis.matches.map((m) => `${m.requirement_name} (${humanize(m.match_status)})`).join(', ')}</p>
                 )}
@@ -178,8 +188,8 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
 
             <div aria-live="assertive">
               {conflict && (
-                <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3" data-testid="approve-conflict">
-                  <p className="font-semibold text-amber-200">Cannot approve: slot conflict</p>
+                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950" data-testid="approve-conflict">
+                  <p className="flex items-center gap-2 font-semibold text-amber-900"><IconAlert size={18} className="text-amber-600" />Cannot approve: slot conflict</p>
                   <p className="text-sm">{conflict.message}</p>
                   <AlternativeList items={conflict.alternatives} pickLabel="Propose this alternative" busy={propose.isPending}
                     onPick={(a) => doPropose({ start_at: a.start_at, end_at: a.end_at, equipment_unit_id: a.unit_id, equipment_type_id: a.equipment_type_id })} />
@@ -189,7 +199,7 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
             </div>
 
             {actionable ? (
-              <div className="space-y-3 rounded-xl border border-line bg-bg p-3">
+              <div className="space-y-3 rounded-xl border border-line bg-surface2/60 p-4">
                 <Field label="Reviewer note (optional)" htmlFor="rv-note">
                   <Textarea id="rv-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} className="min-h-16" />
                 </Field>
@@ -201,7 +211,7 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
                 </div>
                 {proposing && (
                   <form
-                    className="grid gap-3 sm:grid-cols-2"
+                    className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2"
                     aria-label="Propose alternative"
                     onSubmit={(e) => {
                       e.preventDefault()
@@ -220,7 +230,7 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
                 )}
               </div>
             ) : (
-              <div className="flex justify-end"><Button variant="ghost" onClick={onClose}>Close</Button></div>
+              <div className="flex justify-end border-t border-line pt-4"><Button variant="secondary" onClick={onClose}>Close</Button></div>
             )}
 
             <ConfirmDialog
@@ -261,7 +271,7 @@ function ReviewPane({ id, onClose }: { id: string; onClose: () => void }) {
                   <Textarea id="rj-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} aria-invalid={!!reasonErr} />
                 </Field>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="ghost" onClick={() => setRejecting(false)}>Cancel</Button>
+                  <Button type="button" variant="secondary" onClick={() => setRejecting(false)}>Cancel</Button>
                   <Button type="submit" variant="danger" loading={reject.isPending}>Reject request</Button>
                 </div>
               </form>

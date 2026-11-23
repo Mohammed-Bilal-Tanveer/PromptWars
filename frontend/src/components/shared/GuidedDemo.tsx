@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Button, Modal, cx } from '@/components/ui'
+import { Button, IconArrowRight, Modal, cx } from '@/components/ui'
 import { ROUTES } from '@/lib/routes'
 import { useAppStore } from '@/stores/appStore'
 
@@ -30,29 +30,33 @@ export function GuidedDemo() {
         {STEPS.map((s, i) => {
           const checked = done.includes(s.id)
           return (
-            <li key={s.id} className={cx('rounded-xl border p-3', checked ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-line bg-bg')}>
+            <li key={s.id} className={cx('rounded-xl border p-3 transition-colors', checked ? 'border-emerald-200 bg-emerald-50' : 'border-line bg-surface')}>
               <div className="flex items-start gap-3">
                 <input
                   id={`gd-${s.id}`}
                   type="checkbox"
                   checked={checked}
                   onChange={() => mark(s.id)}
-                  className="mt-1 h-5 w-5 accent-emerald-500"
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-700"
                   aria-label={`Mark step ${i + 1} done`}
                 />
-                <div className="flex-1">
-                  <label htmlFor={`gd-${s.id}`} className="font-semibold">{i + 1}. {s.title}</label>
-                  <p className="text-xs text-muted">{s.text}</p>
+                <div className="min-w-0 flex-1">
+                  <label htmlFor={`gd-${s.id}`} className={cx('text-sm font-semibold', checked && 'text-emerald-900')}>{i + 1}. {s.title}</label>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted">{s.text}</p>
                 </div>
-                <Link to={s.to} onClick={() => setOpen(false)} className="min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-bold hover:bg-surface2">
-                  Go →
+                <Link
+                  to={s.to}
+                  onClick={() => setOpen(false)}
+                  className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg border border-line-strong bg-surface px-2.5 text-xs font-semibold text-fg hover:bg-surface2"
+                >
+                  Go <IconArrowRight size={14} />
                 </Link>
               </div>
             </li>
           )
         })}
       </ol>
-      <Button variant="ghost" className="mt-4" onClick={() => setOpen(false)}>Close</Button>
+      <Button variant="secondary" className="mt-4" onClick={() => setOpen(false)}>Close</Button>
     </Modal>
   )
 }

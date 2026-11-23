@@ -1,62 +1,91 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type ComponentType, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/lib/routes'
-import { cx, Button, Modal } from '@/components/ui'
+import {
+  cx, Button, Modal,
+  IconBuilding, IconCalendar, IconChart, IconCheckSquare, IconClipboard, IconCube, IconFlask, IconHome, IconListChecks,
+  IconMenu, IconMessage, IconSearch, IconSliders, IconInfo, type IconProps,
+} from '@/components/ui'
 import { NotificationCenter } from '@/features/analytics'
 import { GuidedDemo } from '@/components/shared/GuidedDemo'
 import { useAppStore } from '@/stores/appStore'
 import { usePublicConfig } from '@/hooks/useApi'
 
-export const NAV = [
-  { to: ROUTES.overview, label: 'Overview', icon: '🏠', end: true },
-  { to: ROUTES.discover, label: 'Discover Equipment', icon: '🔎' },
-  { to: ROUTES.projectLab, label: 'Project Lab (AI)', icon: '✨' },
-  { to: ROUTES.calendar, label: 'Booking Calendar', icon: '📅' },
-  { to: ROUTES.requests, label: 'My Requests', icon: '📋' },
-  { to: ROUTES.scheduling, label: 'Scheduling Studio', icon: '🧠' },
-  { to: ROUTES.approvals, label: 'Demo Approval Desk', icon: '✅' },
-  { to: ROUTES.analytics, label: 'Resource Analytics', icon: '📊' },
-  { to: ROUTES.labs, label: 'Campus Directory', icon: '🏛️' },
-  { to: ROUTES.assistant, label: 'AI Assistant', icon: '💬' },
+type NavItem = { to: string; label: string; short: string; icon: ComponentType<IconProps>; end?: boolean; group: string }
+
+export const NAV: readonly NavItem[] = [
+  { to: ROUTES.overview, label: 'Overview', short: 'Overview', icon: IconHome, end: true, group: 'Workspace' },
+  { to: ROUTES.discover, label: 'Discover Equipment', short: 'Discover', icon: IconSearch, group: 'Workspace' },
+  { to: ROUTES.projectLab, label: 'Project Lab', short: 'Project Lab', icon: IconFlask, group: 'Workspace' },
+  { to: ROUTES.calendar, label: 'Booking Calendar', short: 'Calendar', icon: IconCalendar, group: 'Workspace' },
+  { to: ROUTES.requests, label: 'My Requests', short: 'Requests', icon: IconClipboard, group: 'Workspace' },
+  { to: ROUTES.scheduling, label: 'Scheduling Studio', short: 'Scheduling', icon: IconSliders, group: 'Operations' },
+  { to: ROUTES.approvals, label: 'Demo Approval Desk', short: 'Approvals', icon: IconCheckSquare, group: 'Operations' },
+  { to: ROUTES.analytics, label: 'Resource Analytics', short: 'Analytics', icon: IconChart, group: 'Operations' },
+  { to: ROUTES.labs, label: 'Campus Directory', short: 'Directory', icon: IconBuilding, group: 'Campus' },
+  { to: ROUTES.assistant, label: 'Assistant', short: 'Assistant', icon: IconMessage, group: 'Campus' },
 ] as const
 
 const BOTTOM = [NAV[0], NAV[1], NAV[2], NAV[4], NAV[6]]
+const GROUPS = ['Workspace', 'Operations', 'Campus']
+
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <span className={cx('grid h-8 w-8 place-items-center rounded-lg bg-brand text-white shadow-card', className)} aria-hidden>
+      <IconFlask size={18} strokeWidth={1.75} />
+    </span>
+  )
+}
 
 function Wordmark() {
   return (
-    <Link to={ROUTES.home} className="flex items-center gap-2 font-extrabold text-lg" aria-label="LabLink home">
-      <span className="grad-brand grid h-9 w-9 place-items-center rounded-xl" aria-hidden>L</span>
-      <span>Lab<span className="grad-text">Link</span></span>
+    <Link to={ROUTES.home} className="flex min-h-11 items-center gap-2.5 rounded-lg text-[17px] font-semibold tracking-tight text-fg" aria-label="LabLink home">
+      <LogoMark />
+      <span>LabLink</span>
     </Link>
   )
 }
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label="Main navigation" className="flex flex-col gap-1">
-      {NAV.map((n) => (
-        <NavLink
-          key={n.to}
-          to={n.to}
-          end={'end' in n ? n.end : false}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cx(
-              'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition',
-              isActive ? 'grad-sched shadow' : 'text-muted hover:bg-surface2 hover:text-fg',
-            )
-          }
-        >
-          <span aria-hidden>{n.icon}</span>
-          {n.label}
-        </NavLink>
+    <nav aria-label="Main navigation" className="flex flex-col gap-5">
+      {GROUPS.map((g) => (
+        <div key={g}>
+          <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-subtle">{g}</p>
+          <ul className="flex flex-col gap-0.5">
+            {NAV.filter((n) => n.group === g).map((n) => (
+              <li key={n.to}>
+                <NavLink
+                  to={n.to}
+                  end={n.end ?? false}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    cx(
+                      'relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors lg:min-h-9',
+                      isActive
+                        ? 'bg-brand-subtle text-brand-fg before:absolute before:inset-y-1.5 before:-left-3 before:w-[3px] before:rounded-r-full before:bg-brand'
+                        : 'text-muted hover:bg-surface2 hover:text-fg',
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <n.icon size={18} className={isActive ? 'text-brand' : 'text-subtle'} />
+                      {n.label}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
       ))}
       <Link
         to={ROUTES.campus3d}
         onClick={onNavigate}
-        className="mt-2 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold grad-accent"
+        className="flex min-h-11 items-center gap-3 rounded-lg border border-line-strong bg-surface px-3 text-sm font-semibold text-fg shadow-card transition-colors hover:bg-surface2"
       >
-        <span aria-hidden>🎮</span> Campus Explorer (3D)
+        <IconCube size={18} className="text-brand" /> Open 3D Campus
       </Link>
     </nav>
   )
@@ -80,65 +109,82 @@ export function ProfessionalLayout() {
       <a href="#main" className="skip-link">Skip to main content</a>
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-line bg-surface p-4 lg:flex">
-        <Wordmark />
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-line bg-surface px-3 py-4 lg:flex">
+        <div className="px-2"><Wordmark /></div>
         <NavList />
-        <div className="mt-auto rounded-xl border border-line p-3 text-xs text-muted">
-          <strong className="text-fg">Sample campus data</strong>
-          <br />
+        <div className="mt-auto rounded-xl border border-line bg-surface2 p-3 text-xs leading-relaxed text-muted">
+          <strong className="block text-[13px] font-semibold text-fg">Sample campus data</strong>
           Hackathon demonstration using simulated campus data. No login required.
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-line bg-bg/90 px-3 py-2 backdrop-blur sm:px-5">
+        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-line bg-surface/95 px-3 py-2.5 sm:px-6">
           <button
-            className="min-h-11 min-w-11 rounded-xl border border-line lg:hidden"
+            className="grid min-h-11 min-w-11 place-items-center rounded-lg border border-line-strong bg-surface text-muted hover:bg-surface2 hover:text-fg lg:hidden"
             aria-label="Open navigation menu"
             onClick={() => setDrawer(true)}
           >
-            ☰
+            <IconMenu size={20} />
           </button>
           <div className="lg:hidden"><Wordmark /></div>
-          <form onSubmit={onSearch} role="search" className="order-last flex min-w-0 basis-full gap-2 sm:order-none sm:basis-auto sm:flex-1 sm:max-w-xl">
+          <form onSubmit={onSearch} role="search" className="order-last flex min-w-0 basis-full gap-2 sm:order-none sm:max-w-md sm:flex-1 sm:basis-auto">
             <label htmlFor="global-search" className="sr-only">Search equipment and laboratories</label>
-            <input
-              id="global-search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search equipment, labs, capabilities…"
-              className="min-h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-sm placeholder:text-slate-500"
-            />
-            <Button type="submit" variant="secondary" aria-label="Search">🔍</Button>
+            <div className="relative min-w-0 flex-1">
+              <IconSearch size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+              <input
+                id="global-search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search equipment, labs, capabilities…"
+                className="min-h-11 w-full min-w-0 rounded-lg border border-line-strong bg-surface pl-10 pr-3 text-sm text-fg placeholder:text-subtle hover:border-[#b5bcc7] focus:border-brand lg:min-h-10"
+              />
+            </div>
+            <Button type="submit" variant="secondary" aria-label="Search" className="px-3">
+              <IconSearch size={18} className="sm:hidden" /><span className="hidden sm:inline">Search</span>
+            </Button>
           </form>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setGuided(true)} className="hidden sm:inline-flex">🧭 Guided demo</Button>
-            <Link to={ROUTES.campus3d} className="grad-accent inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold">🎮 3D<span className="ml-1 hidden sm:inline">Campus</span></Link>
+            <Button variant="ghost" onClick={() => setGuided(true)} className="hidden md:inline-flex">
+              <IconListChecks size={18} /> Guided demo
+            </Button>
+            <Link
+              to={ROUTES.campus3d}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-sm font-semibold text-fg shadow-card transition-colors hover:bg-surface2 lg:min-h-10"
+            >
+              <IconCube size={18} className="text-brand" />3D<span className="-ml-1 hidden sm:inline"> Campus</span>
+            </Link>
             <NotificationCenter />
           </div>
         </header>
 
         {cfg && !cfg.ai_configured && (
-          <div className="border-b border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-center text-xs text-amber-200" role="note">
-            AI key not configured on the server — Project Lab uses the clearly-labelled deterministic “Demo analysis”.
+          <div className="flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900" role="note">
+            <IconInfo size={16} className="hidden shrink-0 text-amber-600 sm:block" />
+            <span>AI key not configured on the server — Project Lab uses the clearly-labelled “Demo analysis”.</span>
           </div>
         )}
 
-        <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 pb-28 sm:px-6 lg:pb-8">
+        <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-28 outline-none sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </main>
 
         {/* Mobile bottom nav */}
-        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface lg:hidden">
+        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
           {BOTTOM.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
-              end={'end' in n ? n.end : false}
-              className={({ isActive }) => cx('flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-semibold', isActive ? 'text-sky-300' : 'text-muted')}
+              end={n.end ?? false}
+              className={({ isActive }) =>
+                cx(
+                  'relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium',
+                  isActive ? 'text-brand before:absolute before:inset-x-4 before:top-0 before:h-0.5 before:rounded-b before:bg-brand' : 'text-muted',
+                )
+              }
             >
-              <span aria-hidden className="text-lg">{n.icon}</span>
-              <span className="truncate max-w-full">{n.label.replace(' (AI)', '').replace('Discover Equipment', 'Discover').replace('Demo Approval Desk', 'Approvals')}</span>
+              <n.icon size={20} />
+              <span className="max-w-full truncate">{n.short}</span>
             </NavLink>
           ))}
         </nav>
@@ -146,7 +192,9 @@ export function ProfessionalLayout() {
 
       <Modal open={drawer} onClose={() => setDrawer(false)} title="Navigation" side>
         <NavList onNavigate={() => setDrawer(false)} />
-        <Button variant="ghost" className="mt-3 w-full" onClick={() => { setDrawer(false); setGuided(true) }}>🧭 Guided demo</Button>
+        <Button variant="secondary" className="mt-4 w-full" onClick={() => { setDrawer(false); setGuided(true) }}>
+          <IconListChecks size={18} /> Guided demo
+        </Button>
       </Modal>
 
       <GuidedDemo />

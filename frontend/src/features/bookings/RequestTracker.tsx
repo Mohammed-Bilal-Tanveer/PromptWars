@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, QueryBoundary, Select, StatusChip, Chip } from '@/components/ui'
+import { Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Notice, PageHeader, QueryBoundary, Select, StatusChip, Chip, IconEye, IconChevronRight } from '@/components/ui'
 import { useAcceptAlternative, useBookingRequest, useBookingRequests, useCancelRequest } from '@/hooks/useApi'
 import { toast } from '@/stores/appStore'
 import { formatRange } from '@/lib/format'
@@ -23,15 +23,15 @@ export function RequestDetail({ id, onClose }: { id: string; onClose: () => void
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={r.status} />
-            {r.requires_supervision && <Chip tone="warn" icon="⚠">Supervision required</Chip>}
-            <span className="font-mono text-xs text-muted">{r.id}</span>
+            {r.requires_supervision && <Chip tone="warn" icon={<IconEye size={13} strokeWidth={2} />}>Supervision required</Chip>}
+            <span className="font-mono text-xs text-subtle">{r.id}</span>
           </div>
           <div>
-            <h3 className="text-lg font-bold">{r.project_title}</h3>
-            <p className="text-sm text-muted">{r.equipment_name} · {r.laboratory_name}{r.requested_unit_name ? ` · ${r.requested_unit_name}` : ''}</p>
-            <p className="text-sm">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
-            <p className="mt-1 text-sm">{r.purpose}</p>
-            <p className="text-xs text-muted">Requested by {r.requester_name} ({r.requester_department_name})</p>
+            <h3 className="text-lg font-semibold">{r.project_title}</h3>
+            <p className="mt-0.5 text-sm text-muted">{r.equipment_name} · {r.laboratory_name}{r.requested_unit_name ? ` · ${r.requested_unit_name}` : ''}</p>
+            <p className="tnum mt-2 text-sm font-medium">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
+            <p className="mt-2 text-sm leading-relaxed">{r.purpose}</p>
+            <p className="mt-2 text-xs text-subtle">Requested by {r.requester_name} ({r.requester_department_name})</p>
           </div>
           {r.review_note && <Notice tone="info" title="Reviewer note">{r.review_note}</Notice>}
           <div aria-live="polite">{err && <Notice tone="danger">{err}</Notice>}</div>
@@ -66,8 +66,8 @@ export function RequestDetail({ id, onClose }: { id: string; onClose: () => void
           </Section>
           <Section title="History"><Timeline items={r.timeline ?? []} /></Section>
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="ghost" onClick={onClose}>Close</Button>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <Button variant="secondary" onClick={onClose}>Close</Button>
             {CANCELLABLE.includes(r.status) && <Button variant="danger" onClick={() => setConfirm(true)}>Cancel request</Button>}
           </div>
           <ConfirmDialog
@@ -99,7 +99,8 @@ export function RequestTracker({ embedded }: { embedded?: boolean }) {
   const query = useBookingRequests({ status: status || undefined, q: q || undefined, page, page_size: PAGE })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {!embedded && <PageHeader title="My requests" subtitle="Track the booking requests you have submitted and their current status." />}
       <Card className="grid gap-3 sm:grid-cols-2">
         <Field label="Search requests" htmlFor="rt-q">
           <Input id="rt-q" type="search" value={q} placeholder="Project, equipment or requester" onChange={(e) => { setQ(e.target.value); setPage(1) }} />
@@ -118,21 +119,20 @@ export function RequestTracker({ embedded }: { embedded?: boolean }) {
             <EmptyState title="No booking requests found" hint="Submit a request from Discover or the Calendar." />
           ) : (
             <>
-              <div className="hidden overflow-hidden rounded-2xl border border-line md:block">
+              <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface shadow-card md:block">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Booking requests</caption>
-                  <thead className="bg-surface2 text-xs uppercase text-muted">
-                    <tr><th className="p-3">Project</th><th className="p-3">Equipment</th><th className="p-3">When</th><th className="p-3">Status</th><th className="p-3">Priority</th><th className="p-3"><span className="sr-only">Actions</span></th></tr>
+                  <thead className="border-b border-line bg-surface2 text-xs font-medium text-muted">
+                    <tr><th scope="col" className="px-3 py-2.5 font-medium">Project and equipment</th><th scope="col" className="px-3 py-2.5 font-medium">When</th><th scope="col" className="px-3 py-2.5 font-medium">Status</th><th scope="col" className="px-3 py-2.5 text-right font-medium">Priority</th><th scope="col" className="px-3 py-2.5"><span className="sr-only">Actions</span></th></tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-line">
                     {p.items.map((r) => (
-                      <tr key={r.id} className="border-t border-line">
-                        <td className="p-3 font-semibold">{r.project_title}<div className="text-xs font-normal text-muted">{r.requester_name}</div></td>
-                        <td className="p-3">{r.equipment_name}</td>
-                        <td className="p-3">{formatRange(r.requested_start_at, r.requested_end_at)}</td>
-                        <td className="p-3"><StatusChip status={r.status} /></td>
-                        <td className="p-3 tabular-nums">{Math.round(r.priority_score * 100)}%</td>
-                        <td className="p-3"><Button size="sm" variant="secondary" onClick={() => setOpen(r.id)} aria-label={`View details for ${r.project_title}`}>Details</Button></td>
+                      <tr key={r.id} className="transition-colors hover:bg-surface2/60">
+                        <td className="px-3 py-3 font-medium">{r.project_title}<div className="text-xs font-normal text-muted">{r.equipment_name} · {r.requester_name}</div></td>
+                        <td className="tnum whitespace-nowrap px-3 py-3 text-muted">{formatRange(r.requested_start_at, r.requested_end_at)}</td>
+                        <td className="px-3 py-3"><StatusChip status={r.status} /></td>
+                        <td className="tnum px-3 py-3 text-right">{Math.round(r.priority_score * 100)}%</td>
+                        <td className="px-3 py-3 text-right"><Button size="sm" variant="secondary" onClick={() => setOpen(r.id)} aria-label={`View details for ${r.project_title}`}>Details</Button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -146,15 +146,15 @@ export function RequestTracker({ embedded }: { embedded?: boolean }) {
                         <div className="min-w-0"><div className="truncate font-semibold">{r.project_title}</div><div className="text-xs text-muted">{r.equipment_name}</div></div>
                         <StatusChip status={r.status} />
                       </div>
-                      <p className="mt-1 text-sm">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
-                      <Button className="mt-2" size="sm" variant="secondary" onClick={() => setOpen(r.id)} aria-label={`View details for ${r.project_title}`}>Details</Button>
+                      <p className="tnum mt-2 text-sm text-muted">{formatRange(r.requested_start_at, r.requested_end_at)}</p>
+                      <Button className="mt-3 w-full" size="sm" variant="secondary" onClick={() => setOpen(r.id)} aria-label={`View details for ${r.project_title}`}>Details <IconChevronRight size={16} /></Button>
                     </Card>
                   </li>
                 ))}
               </ul>
-              <nav className="flex items-center justify-between" aria-label="Pagination">
+              <nav className="flex items-center justify-between gap-2" aria-label="Pagination">
                 <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
-                <span className="text-sm text-muted" aria-live="polite">Page {p.page} of {Math.max(1, Math.ceil(p.total / PAGE))} · {p.total} request{p.total === 1 ? '' : 's'}</span>
+                <span className="tnum text-center text-sm text-muted" aria-live="polite">Page {p.page} of {Math.max(1, Math.ceil(p.total / PAGE))} · {p.total} request{p.total === 1 ? '' : 's'}</span>
                 <Button variant="secondary" disabled={page * PAGE >= p.total} onClick={() => setPage(page + 1)}>Next</Button>
               </nav>
             </>
