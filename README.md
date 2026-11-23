@@ -13,7 +13,7 @@
 
 > The repository is named **PromptWars**; the product is **LabLink**. All campus data is fictional and the Approval Desk is a public simulation: no real approvals, no accounts.
 >
-> The free-tier backend may take up to a minute to wake after being idle. The app shows a "Waking up LabLink" banner and reconnects automatically (see [Backend cold-start behaviour](#backend-cold-start-behaviour)).
+> If the hosted backend has been idle it may take up to a minute to wake (depends on the Render plan). The app shows a "Waking up LabLink" banner and reconnects automatically (see [Backend cold-start behaviour](#backend-cold-start-behaviour)).
 
 ## Application Preview
 Screenshots of the running app (fictional demo data).
@@ -63,11 +63,11 @@ flowchart TD
   B --> S["OR-Tools CP-SAT scheduling"]
   B --> W["Booking, approval and waitlist"]
   B --> N["Notifications and analytics"]
-  AI --> D[("SQLite local / PostgreSQL on Render")]
-  M --> D
-  S --> D
+  B --> D[("SQLite local / PostgreSQL on Render")]
   W --> D
   N --> D
+  M -. reads catalogue .-> D
+  S -. reads bookings .-> D
 ```
 
 Backend layout: `backend/app/api/routes/` (HTTP), `backend/app/services/` (`ai_service`, `equipment_matcher`, `availability_service`, `booking_service`, `approval_service`, `scheduling_service` + `scheduling_data`, `priority`, `notification_service`, `analytics_service`, `demo_service`), `backend/app/models/`, `backend/app/schemas/`, `backend/app/seed/`.
@@ -81,9 +81,11 @@ flowchart LR
   D --> E{"Unit free?"}
   E -- yes --> F["Booking request"]
   E -- no --> G["Allocation queue (waitlist)"]
-  F --> H["Scheduling optimisation"]
-  G --> H
-  H --> I["Demo Approval Desk"]
+  F --> I["Demo Approval Desk"]
+  G --> I
+  F -. optional .-> H["Scheduling recommendation"]
+  G -. optional .-> H
+  H -. advisory .-> I
   I --> J["Confirmed booking"]
 ```
 
@@ -98,8 +100,8 @@ flowchart LR
 | Booking | `POST /booking-requests` validates all hard constraints, then creates `pending_review`. Approval re-checks availability **inside a transaction** (row locks on PostgreSQL) and only then creates a `confirmed` booking; conflicts return `409 SLOT_CONFLICT` with alternatives. |
 | Allocation queue | If every unit is busy and the requester sends `join_waitlist: true`, the request becomes `waitlisted` (valid window only, duplicates rejected, **no booking, no reservation**). It shows an estimated `queue_position` (priority, then age), can be left (cancelled), is included in scheduling runs, and still needs reviewer approval. |
 | AI analyser | Strict JSON-schema output re-validated by Pydantic; untrusted-input prompt; 10-minute cache; rate limit (10/min/IP). Missing key / timeout / invalid output gives a clearly labelled **Demo analysis** (`demo_fallback`). |
-| Matching | Score 0-100 from exact name, category, capability overlap, lab/department preference and availability, with evidence strings. Nothing matched means `unmatched` (never fabricated). |
-| Scheduling | CP-SAT over 15-minute slots per unit; hard constraints (no overlap, opening hours, operational units, min/max duration, maintenance, confirmed bookings fixed). Weights `0.40 deadline + 0.25 waiting + 0.20 fairness + 0.15 preference` (`W_*` env vars); fairness is identity-free. Output is a recommendation only; the response carries a solver `summary` and per-unit `timeline` for the visualiser. |
+| Matching | Score 0-100 from exact name, category, capability overlap, preferred-department ownership and availability, with evidence strings. Nothing matched means `unmatched` (never fabricated). |
+| Scheduling | CP-SAT over 15-minute slots per unit; hard constraints (no overlap, opening hours, operational units, maintenance, confirmed bookings fixed; min/max duration is validated when the request is created). Weights `0.40 deadline + 0.25 waiting + 0.20 fairness + 0.15 preference` (`W_*` env vars); fairness is identity-free. Output is a recommendation only; the response carries a solver `summary` and per-unit `timeline` for the visualiser. |
 
 ## Tech stack
 | Layer | Technology |
@@ -157,7 +159,7 @@ You do **not** need to run `alembic upgrade head` or the seed script manually: w
 Optional: copy `.env.example` to `backend/.env` and set `OPENAI_API_KEY` (never exposed to the browser). Without it the analyser uses the labelled deterministic fallback. `.env` is read from the folder uvicorn is started in, and empty variables are ignored (`env_ignore_empty`).
 
 ## Environment variables
-Backend variables are defined in `backend/app/core/config.py` (examples in `backend/.env.example` and the root `.env.example`); frontend variables are `VITE_*` and baked in at build time (`frontend/.env.example`).
+Backend variables are defined in `backend/app/core/config.py` (complete list in `backend/.env.example`; the root `.env.example` is a subset); frontend variables are `VITE_*` and baked in at build time (`frontend/.env.example`).
 
 | Variable | Purpose | Default | Used in |
 |---|---|---|---|
@@ -218,10 +220,10 @@ Both services are deployed from their own sub-folder (set the **Root Directory**
 
 With `DEMO_MODE=true` the app runs migrations and the idempotent seed on start-up, so a fresh database needs no manual step.
 
-**Frontend — Vercel, Root Directory `frontend`** (`frontend/vercel.json` adds the SPA rewrite). Leave Install/Build/Output overrides empty (Vite defaults: `npm ci`, `npm run build`, `dist`) and set `VITE_API_BASE_URL=https://<render-service>.onrender.com/api/v1`, then redeploy (baked in at build time). Optional: `VITE_RENDER_FREE_TIER=true`. (The root-level `vercel.json` only applies if the Root Directory is left at the repository root.)
+**Frontend — Vercel, Root Directory `frontend`** (`frontend/vercel.json` adds the SPA rewrite). Leave Install/Build/Output overrides empty (Vite defaults: `npm install`, `npm run build`, `dist`) and set `VITE_API_BASE_URL=https://<render-service>.onrender.com/api/v1`, then redeploy (baked in at build time). Optional: `VITE_RENDER_FREE_TIER=true`. (The root-level `vercel.json` only applies if the Root Directory is left at the repository root.)
 
 ## Backend cold-start behaviour
-Free-tier hosts sleep when idle. Implemented in `frontend/src/features/connection/`:
+Low-cost hosting plans can sleep when idle. Implemented in `frontend/src/features/connection/`:
 - **Startup probe:** one `GET /health/ready` on load. If it is slower than the threshold (1.8 s by default) or fails, the app enters the *waking* state.
 - **Status chip:** the Professional layout also shows a small Connected / Connecting... / Waking up... / Unavailable indicator.
 - **Banner:** a non-blocking card titled **"Waking up LabLink"**, with "The demo server is waking up — this can take up to a minute on the free hosting tier..." when `VITE_RENDER_FREE_TIER=true` (otherwise generic wording), plus an elapsed-seconds / check counter, **Retry now** and **Hide** buttons. Hidden, it becomes a small **"Reconnecting..."** pill. There is no percentage progress bar.
@@ -246,7 +248,7 @@ Verified on this branch with the commands shown.
 
 - [x] Public GitHub repository: https://github.com/Mohammed-Bilal-Tanveer/PromptWars
 - [x] Single branch on the remote: `git ls-remote --heads origin` lists only `refs/heads/main`
-- [x] Repository size under 10 MB: tracked files total about 2.9 MB (`git ls-files -z | xargs -0 du -cb`); git objects about 1.2 MiB (`git count-objects -vH`)
+- [x] Repository size under 10 MB: tracked files total about 3.3 MB (`git ls-files -z | xargs -0 du -cb`); git objects about 1.6 MiB (`git count-objects -vH`)
 - [x] No secrets or databases committed: `git ls-files | grep -iE '\.env$|\.db$'` is empty (only placeholder `.env.example` files are tracked)
 - [x] Live URL responds (frontend and hosted API `/health/ready`, `/docs`)
 - [x] README covers vertical, approach, logic, assumptions, deployment and run instructions

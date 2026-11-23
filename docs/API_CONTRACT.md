@@ -13,7 +13,7 @@ Product spec/roadmap: `docs/SPEC.md`; overview and deployment: `README.md`.
 ## Enumerations
 - unit.status: `operational | maintenance | unavailable`
 - equipment.status (derived): `available` if >=1 unit is free now, `maintenance` if every unit is in maintenance/non-operational, otherwise `occupied`. => **`available | occupied | maintenance`** (there is no `limited` status).
-- booking_request.status: `pending_review | waitlisted | approved | rejected | alternative_proposed | confirmed | cancelled | completed | expired`
+- booking_request.status: `pending_review | waitlisted | approved | rejected | alternative_proposed | confirmed | cancelled | completed | expired` (`expired` is reserved and never produced by the current code)
   - Active (reviewable) statuses: `pending_review`, `waitlisted`, `alternative_proposed`. `waitlisted` = joined the allocation queue (no booking, no reservation).
   - Approving a request (from any active status) runs a fresh transactional availability check; success -> request `confirmed` + Booking row `confirmed` (an `approvals` audit row with action `approved`). Failure -> 409 `SLOT_CONFLICT` with `details.alternatives`, request keeps its current status.
   - `approved` is only a transient/legacy value; normal path jumps straight to `confirmed`.
@@ -121,7 +121,7 @@ BookingRequest { id, project_id, project_title, requester_name, requester_depart
   priority_factors:{deadline_urgency:number, waiting_time:number, fairness:number, preference_fit:number} /*each 0-1*/,
   review_note:string|null, requires_supervision:boolean,
   proposed_alternative:{start_at,end_at,equipment_unit_id:string|null,equipment_type_id:string|null,equipment_name:string|null,note:string|null}|null,
-  booking:Booking|null, created_at, updated_at,
+  booking:Booking|null, queue_position:number|null /* estimated; waitlisted only */, created_at, updated_at,
   /* detail-only: */ timeline?:AuditItem[], analysis?:AnalysisResult|null, availability_now?:{is_available:boolean,free_units:number,total_units:number}, recommendation?:Alternative|null }
 AuditItem { id, action:string /*submitted|approved|rejected|alternative_proposed|confirmed|cancelled|conflict|...*/, description, actor:string /*e.g. "Demo Lab Coordinator" | requester name | "System"*/, note:string|null, created_at }
 Booking { id, booking_request_id, equipment_unit_id, unit_name, inventory_code, equipment_type_id, equipment_name, laboratory_id, laboratory_name,
@@ -179,7 +179,7 @@ On startup (in lifespan): when `DEMO_MODE=true`, run alembic upgrade (or `create
   - Valid window but **no free unit**: `join_waitlist=false` -> unchanged `409 SLOT_CONFLICT` with alternatives. `join_waitlist=true` -> `201` BookingRequest with `status:"waitlisted"` (priority computed, audit event `queue_joined`, notification `waitlist_joined`), no booking created.
   - A unit is free: normal `pending_review` request (join_waitlist ignored).
   - Duplicate active request (same requester_name + project_title + equipment + overlapping window, status pending_review/waitlisted/alternative_proposed) -> `400 VALIDATION_ERROR` with reason "You already have an active request for this equipment in an overlapping window."
-- Transitions from `waitlisted`: approve (transactional re-check; 409 SLOT_CONFLICT if still no unit), reject (reason required), propose alternative -> `alternative_proposed`, cancel/leave queue (`POST /booking-requests/{id}/cancel`) -> `cancelled`. Cancelled/rejected/expired are excluded from scheduling.
+- Transitions from `waitlisted`: approve (transactional re-check; 409 SLOT_CONFLICT if still no unit), reject (reason required), propose alternative -> `alternative_proposed`, cancel/leave queue (`POST /booking-requests/{id}/cancel`) -> `cancelled`. Cancelled and rejected requests are excluded from scheduling.
 - `BookingRequest` carries `queue_position: number | null` (**estimated**, only for waitlisted: rank among waitlisted requests for the same equipment type by priority_score desc, then created_at asc; may change).
 - `GET /booking-requests?status=waitlisted` works. `GET /approvals/queue` default statuses are `pending_review,waitlisted,alternative_proposed` (same as in the Scheduling & approvals section).
 - Scheduling (`POST /scheduling/recommendations`, `GET /scheduling/conflicts`) treats `waitlisted` like `pending_review`. Recommendation runs never create bookings or change request status.
@@ -191,4 +191,4 @@ Public, unauthenticated apps must never expose an unrestricted destructive endpo
 - Enabled only when `DEMO_MODE=true` AND `DEMO_RESET_ENABLED` is true (default: **false** in every environment; opt in with `DEMO_RESET_ENABLED=true`, intended for local use only, never on a public deployment). `GET /config/public` returns `demo_reset_enabled: boolean` (true only when both hold).
 - `POST /demo/reset-token` -> `{"token": string, "expires_in_seconds": 120}`. One-time, in-memory, rate limited 5/min/IP (429 `RATE_LIMITED`). Disabled -> 403 `DEMO_RESET_DISABLED`.
 - `POST /demo/reset` body `{"token": string, "confirm": "RESET DEMO SCENARIO"}` -> `{"status":"reset","restored":{"requests_removed":n,"bookings_removed":n,"projects_removed":n,"maintenance_removed":n}}`. Wrong confirm text / bad, expired or used token -> 400 `VALIDATION_ERROR`. Disabled -> 403.
-- Only non-seed rows are removed (seed ids are recognised by prefix: `req-seed-`, `req-hist-`, `bk-seed-`, `bk-hist-`, `prj-seed-`); seed requests are restored to their seeded state; the catalogue (departments, labs, equipment types, units) is never touched; tables are never dropped.
+- Only non-seed rows are removed (seed ids are recognised by prefix: `req-seed-`, `req-hist-`, `bk-seed-`, `bk-hist-`, `prj-seed-`); seed requests are restored to their seeded state; the catalogue (departments, labs, equipment types, units) is never created or deleted; the only unit change is that units covered by removed user-created maintenance windows are set back to `operational`; tables are never dropped.
