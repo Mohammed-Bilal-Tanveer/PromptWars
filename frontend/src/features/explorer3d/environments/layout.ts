@@ -21,12 +21,12 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: BuildingDef[] = [
-  { id: 'CS-B', label: 'CS Building', short: 'CS-B', x: -28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#8396ad', roofColor: '#4d5d73', roof: 'flat', departmentIds: ['dept-cs'] },
-  { id: 'EC-B', label: 'ECE Building', short: 'EC-B', x: 28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#d9c49b', roofColor: '#9a7d52', roof: 'pyramid', departmentIds: ['dept-ece'] },
-  { id: 'ME-B', label: 'Mech & Civil Building', short: 'ME-B', x: -28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#c99079', roofColor: '#8a5644', roof: 'slope', departmentIds: ['dept-mech', 'dept-civil'] },
-  { id: 'BT-B', label: 'Biotech Building', short: 'BT-B', x: 28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#a2b89c', roofColor: '#5f7b5d', roof: 'dome', departmentIds: ['dept-bio'] },
-  { id: 'OPS', label: 'Operations & Approval Centre', short: 'OPS', x: 0, z: -40, w: 16, d: 8, h: 4.8, facing: 1, color: '#cbc1b2', roofColor: '#7d7368', roof: 'flat', departmentIds: [], special: 'operations' },
-  { id: 'ANA', label: 'Analytics Control Centre', short: 'ANA', x: 0, z: 40, w: 16, d: 8, h: 4.8, facing: -1, color: '#95aaa6', roofColor: '#56706c', roof: 'flat', departmentIds: [], special: 'analytics' },
+  { id: 'CS-B', label: 'CS Building', short: 'CS-B', x: -28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#6B84A8', roofColor: '#3F5373', roof: 'flat', departmentIds: ['dept-cs'] },
+  { id: 'EC-B', label: 'ECE Building', short: 'EC-B', x: 28, z: -22, w: 16, d: 12, h: 4.8, facing: 1, color: '#C9A66B', roofColor: '#8A6A38', roof: 'pyramid', departmentIds: ['dept-ece'] },
+  { id: 'ME-B', label: 'Mech & Civil Building', short: 'ME-B', x: -28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#C07A5F', roofColor: '#7D4A38', roof: 'slope', departmentIds: ['dept-mech', 'dept-civil'] },
+  { id: 'BT-B', label: 'Biotech Building', short: 'BT-B', x: 28, z: 24, w: 16, d: 12, h: 4.8, facing: -1, color: '#7FA58B', roofColor: '#4A6F58', roof: 'dome', departmentIds: ['dept-bio'] },
+  { id: 'OPS', label: 'Operations & Approval Centre', short: 'OPS', x: 0, z: -40, w: 16, d: 8, h: 4.8, facing: 1, color: '#A79F94', roofColor: '#6B655C', roof: 'flat', departmentIds: [], special: 'operations' },
+  { id: 'ANA', label: 'Analytics Control Centre', short: 'ANA', x: 0, z: 40, w: 16, d: 8, h: 4.8, facing: -1, color: '#8FA3B0', roofColor: '#566874', roof: 'flat', departmentIds: [], special: 'analytics' },
 ]
 
 export const DEPT_FALLBACK: Record<string, { building: string; x: number; z: number; name: string }> = {

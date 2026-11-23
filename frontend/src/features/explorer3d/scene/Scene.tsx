@@ -30,8 +30,8 @@ const NPCS_HIGH: NpcDef[] = [
   { id: 'male-c', x: -14, z: 3.4, heading: 1.57, to: { x: 14, z: 3.4 } },
 ]
 
-const pathMat = new THREE.MeshStandardMaterial({ color: '#ddd3bd', roughness: 1 })
-const plazaMat = new THREE.MeshStandardMaterial({ color: '#dcd7cc', roughness: 0.9 })
+const pathMat = new THREE.MeshStandardMaterial({ color: '#D8D0C2', roughness: 1 })
+const plazaMat = new THREE.MeshStandardMaterial({ color: '#D4D4D0', roughness: 0.9 })
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 
 function Paths() {
@@ -102,9 +102,9 @@ function World({ equipment, highlightedIds, paused }: SceneProps) {
 
   return (
     <>
-      <color attach="background" args={['#dde7ee']} />
-      <fog attach="fog" args={['#dde7ee', 60, 150]} />
-      <Sky distance={450000} sunPosition={[30, 50, 20]} turbidity={3} rayleigh={1.1} mieCoefficient={0.004} />
+      <color attach="background" args={['#dfe8ee']} />
+      <fog attach="fog" args={['#dfe8ee', 60, 150]} />
+      <Sky distance={450000} sunPosition={[30, 50, 20]} turbidity={2.5} rayleigh={0.9} mieCoefficient={0.004} />
       <ambientLight intensity={0.7} />
       <hemisphereLight args={['#eef3f7', '#7d9670', 0.8]} />
       <directionalLight
@@ -123,7 +123,7 @@ function World({ equipment, highlightedIds, paused }: SceneProps) {
       />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[130, 130]} />
-        <meshStandardMaterial color="#a3bf8f" roughness={1} />
+        <meshStandardMaterial color="#8DB88A" roughness={1} />
       </mesh>
       <Paths />
       <WelcomeSign x={PLAZA.sign.x} z={PLAZA.sign.z} />

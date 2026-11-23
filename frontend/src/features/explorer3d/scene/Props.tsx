@@ -8,8 +8,8 @@ import { useExplorerStore } from '../stores/explorerStore'
 const boxGeo = new THREE.BoxGeometry(1, 1, 1)
 const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 12)
 /** Single accent used by every terminal / kiosk screen in the scene. */
-export const TERMINAL_ACCENT = '#2f62d8'
-const darkMat = new THREE.MeshStandardMaterial({ color: '#3b4452', roughness: 0.7 })
+export const TERMINAL_ACCENT = '#2563EB'
+const darkMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.7 })
 const metalMat = new THREE.MeshStandardMaterial({ color: '#9aa4b8', roughness: 0.4, metalness: 0.4 })
 const whiteMat = new THREE.MeshStandardMaterial({ color: '#e5e7eb', roughness: 0.6 })
 const boardMat = new THREE.MeshStandardMaterial({ color: '#5f7b72', roughness: 0.7 })
@@ -132,11 +132,11 @@ export function WaypointBeacon() {
     <group position={[wp.x, 0, wp.z]}>
       <mesh ref={ref} position={[0, 6, 0]}>
         <cylinderGeometry args={[0.35, 0.35, 12, 10, 1, true]} />
-        <meshBasicMaterial color="#e0a03a" transparent opacity={0.28} />
+        <meshBasicMaterial color="#2563EB" transparent opacity={0.28} />
       </mesh>
       <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[1, 1.4, 24]} />
-        <meshBasicMaterial color="#d48a1c" />
+        <meshBasicMaterial color="#2563EB" />
       </mesh>
     </group>
   )
@@ -228,9 +228,9 @@ function Model({ kind }: { kind: Kind }) {
 }
 
 export function statusBadge(e: Pick<EquipmentType, 'status' | 'quantity_available' | 'quantity_total'>) {
-  if (e.status === 'available') return { icon: '●', text: `Available ${e.quantity_available}/${e.quantity_total}`, bg: '#ffffff', fg: '#067647' }
-  if (e.status === 'occupied') return { icon: '◐', text: 'Fully booked now', bg: '#ffffff', fg: '#93370d' }
-  return { icon: '▲', text: 'Maintenance', bg: '#ffffff', fg: '#b42318' }
+  if (e.status === 'available') return { icon: '●', text: `Available ${e.quantity_available}/${e.quantity_total}`, bg: '#15803D', fg: '#ffffff' }
+  if (e.status === 'occupied') return { icon: '◐', text: 'Fully booked now', bg: '#B45309', fg: '#ffffff' }
+  return { icon: '▲', text: 'Maintenance', bg: '#B91C1C', fg: '#ffffff' }
 }
 
 export function EquipmentAnchor({ x, z, equipment, highlighted, showBadge }: {
@@ -257,9 +257,9 @@ export function EquipmentAnchor({ x, z, equipment, highlighted, showBadge }: {
       {showBadge && (
         <Html position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            style={{ background: b.bg, color: b.fg, border: highlighted ? '2px solid #1d4ed8' : '1px solid #d0d5dd', borderRadius: 8, padding: '3px 9px', fontSize: 12, lineHeight: 1.35, whiteSpace: 'nowrap', textAlign: 'center', fontFamily: 'system-ui, "Segoe UI", sans-serif', boxShadow: '0 1px 3px rgba(16,24,40,.12)' }}
+            style={{ background: b.bg, color: b.fg, border: highlighted ? '2px solid #2563EB' : '1px solid rgba(255,255,255,.35)', borderRadius: 8, padding: '3px 9px', fontSize: 12, lineHeight: 1.35, whiteSpace: 'nowrap', textAlign: 'center', fontFamily: 'system-ui, "Segoe UI", sans-serif', boxShadow: '0 1px 3px rgba(16,24,40,.12)' }}
           >
-            <div style={{ fontWeight: 600, color: '#101828' }}>{equipment.name}</div>
+            <div style={{ fontWeight: 600, color: '#ffffff' }}>{equipment.name}</div>
             <div style={{ fontWeight: 500 }}>{b.icon} {b.text}{highlighted ? ' · ★ Project Lab match' : ''}</div>
           </div>
         </Html>
