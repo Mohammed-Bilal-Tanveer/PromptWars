@@ -107,6 +107,10 @@ body {
   outline-offset: 2px;
   border-radius: 6px;
 }
+/* <main> is focused programmatically on route change for screen-reader navigation; it is not an interactive control, so no ring. */
+main[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 .skip-link { position: absolute; left: -9999px; top: 8px; z-index: 100; background: #fff; color: var(--color-fg); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-line-strong); box-shadow: var(--shadow-pop); }
 .skip-link:focus { left: 8px; }
 
