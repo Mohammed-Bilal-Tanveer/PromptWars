@@ -1,7 +1,7 @@
 # LabLink API Contract (source of truth for backend + frontend + 3D)
 
 Base path: `/api/v1`. JSON only. No auth. Field names are snake_case. IDs are strings.
-Full product spec: `C:\Users\moham\Downloads\README (12).md` (read the sections you need).
+Product spec/roadmap: `docs/SPEC.md`; overview and deployment: `README.md`.
 
 ## Conventions
 - **Timestamps**: responses always ISO-8601 UTC with `Z` (e.g. `2026-11-25T04:30:00Z`). Requests may send ISO with offset OR *naive* ISO (`2026-11-25T10:00`) which the backend interprets as **campus-local time** (`CAMPUS_TIMEZONE`, default `Asia/Kolkata`). Store UTC. `GET /config/public` returns `campus_timezone`; frontend formats with `Intl.DateTimeFormat(..., {timeZone})`.
@@ -13,13 +13,13 @@ Full product spec: `C:\Users\moham\Downloads\README (12).md` (read the sections 
 ## Enumerations
 - unit.status: `operational | maintenance | unavailable`
 - equipment.status (derived): `available` (>=1 unit free now & operational) | `limited` (some operational units but all booked now / only 1 free of many) | `unavailable` (all units in maintenance/unavailable) — use: `available` if free_now>0, `occupied` if operational units exist but none free now, `maintenance` if every unit is non-operational. => **`available | occupied | maintenance`**.
-- booking_request.status: `pending_review | approved | rejected | alternative_proposed | confirmed | cancelled | completed | expired`
+- booking_request.status: `pending_review | waitlisted | approved | rejected | alternative_proposed | confirmed | cancelled | completed | expired`
   - Approving a request runs a fresh transactional availability check; success -> request `confirmed` + Booking row `confirmed` (an `approvals` audit row with action `approved`). Failure -> 409 `SLOT_CONFLICT` with `details.alternatives`, request stays `pending_review`.
   - `approved` is only a transient/legacy value; normal path jumps straight to `confirmed`.
 - booking.status: `confirmed | cancelled | completed`
 - priority: `required | recommended | optional`
 - match_status: `exact | partial | unavailable | unmatched`
-- notification.type: `request_submitted | request_approved | request_rejected | alternative_proposed | booking_confirmed | booking_reminder | booking_cancelled | booking_completed | maintenance`
+- notification.type: `request_submitted | waitlist_joined | request_approved | request_rejected | alternative_proposed | booking_confirmed | booking_reminder | booking_cancelled | booking_completed | maintenance`
 
 ## Stable seed IDs (idempotent seed MUST use exactly these)
 Departments: `dept-cs`, `dept-ece`, `dept-mech`, `dept-civil`, `dept-bio`
@@ -36,7 +36,7 @@ Demo requester departments use the same dept ids. Seed also creates: ~4 confirme
 ## Health / config
 - `GET /health` -> `{status:"ok", version:"1.0.0", app:"LabLink API"}`
 - `GET /health/ready` -> `{status:"ready", database:"sqlite"|"postgresql"}` (503 + error format if DB down)
-- `GET /config/public` -> `{app_name, version, demo_mode, ai_configured, campus_timezone, data_label:"Sample campus data"}`
+- `GET /config/public` -> `{app_name, version, demo_mode, ai_configured, campus_timezone, data_label:"Sample campus data", demo_reset_enabled:boolean}`
 
 ## Campus
 - `GET /departments` -> `Department[]`
@@ -139,17 +139,21 @@ Alternative { equipment_type_id, equipment_name, unit_id:string, unit_name, star
 ```
 SchedulingResponse { solver:"cp-sat", solver_status:"optimal"|"feasible"|"infeasible"|"not_run", solve_time_ms:number,
   weights:{deadline_urgency:0.40,waiting_time:0.25,fairness:0.20,preference_fit:0.15}, horizon_days:number,
-  results:SchedulingResult[] }
+  results:SchedulingResult[],
+  summary:SolverSummary|null, timeline:UnitTimeline[] /*feed the Scheduling decision visualiser*/ }
+SolverSummary { requests_considered, feasible_assignments, unresolved, units_considered, fixed_blocks, solve_time_ms, horizon_start, horizon_end, horizon_days, grid_minutes, solver_status }
+UnitTimeline { unit_id, unit_name, equipment_type_id, locked:[{start_at,end_at,kind:"booking"|"maintenance",label}], recommended:[{request_id:string|null,start_at,end_at,project_title:string|null}] }
 SchedulingResult { request_id:string|null, equipment_type_id, equipment_name, allocation_status:"feasible"|"partially_feasible"|"infeasible",
   recommended:{unit_id,unit_name,start_at,end_at}|null, priority_score:number, priority_factors:{deadline_urgency,waiting_time,fairness,preference_fit},
-  explanation:string[], conflicts:Conflict[], alternatives:Alternative[], assumptions:string[] }
+  explanation:string[], conflicts:Conflict[], alternatives:Alternative[], assumptions:string[],
+  project_title?, deadline?, requested_start_at?, requested_end_at?, eligible_units:number, hard_constraints_checked:string[], shift_minutes:number|null }
 Conflict { id, type:"pending_overlap"|"maintenance_overlap"|"booking_overlap", severity:"high"|"medium"|"low", equipment_type_id, equipment_name,
   request_ids:string[], booking_ids:string[], start_at, end_at, message }
 ```
 Priority formula (weights in config, documented): `0.40*deadline_urgency + 0.25*waiting_time + 0.20*fairness + 0.15*preference_fit`, each normalised 0-1. Fairness = higher for requesters/departments with fewer recent (14-day) allocated hours (identity-free: keyed by department+name hash only for hours, never a priority bonus by name itself). Deterministic reason codes -> English explanation list.
 
 ## Analytics / notifications / maintenance
-- `GET /analytics/overview` -> `{total_units, units_available, units_occupied, units_maintenance, active_bookings /*confirmed, end>=now*/, pending_requests, approved_count /*approved+confirmed*/, rejected_count, confirmed_count, cancelled_count, avg_review_minutes:number|null, conflict_count, alternatives_proposed, alternatives_accepted, alternative_acceptance_rate:number|null, is_demo_data:true, data_label:"Sample campus data"}`
+- `GET /analytics/overview` -> `{total_units, units_available, units_occupied, units_maintenance, active_bookings /*confirmed, end>=now*/, pending_requests /*pending_review+alternative_proposed*/, waitlisted_count, approved_count /*approved+confirmed+completed*/, rejected_count, confirmed_count, cancelled_count, avg_review_minutes:number|null, conflict_count, alternatives_proposed, alternatives_accepted, alternative_acceptance_rate:number|null, laboratory_count, department_count, is_demo_data:true, data_label:"Sample campus data"}`
 - `GET /analytics/utilisation` -> `{window_days:14, by_department:UtilRow[], by_laboratory:UtilRow[], by_equipment:UtilRow[], most_requested:[{id,name,request_count}], underutilised:UtilRow[] /*lowest 5 by_equipment*/}` where `UtilRow={id,name,booked_hours,capacity_hours,utilisation_pct}` (equipment rows also have `laboratory_name`)
 - `GET /analytics/trends` -> `{peak_hours:[{hour:0-23,bookings:number}], daily:[{date:"YYYY-MM-DD",bookings:number,requests:number}] /*last 14 days + next 7*/}`
 - `GET /notifications?unread_only=false&limit=30` -> `{items:Notification[], unread_count}`; `POST /notifications/{id}/read` -> `Notification`; `POST /notifications/read-all` -> `{unread_count:0}`
@@ -159,8 +163,8 @@ Notification { id, title, message, type, related_entity_type:string|null, relate
 MaintenanceWindow { id, equipment_unit_id, unit_name, inventory_code, equipment_type_id, equipment_name, start_at, end_at, reason, status:"active"|"ended" }
 ```
 
-## Backend config (env) — see README §11
-`DATABASE_URL` (empty -> `sqlite:///./lablink.db`; `postgres://` / `postgresql://` -> `postgresql+psycopg://`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_INPUT_CHARS`, `CAMPUS_TIMEZONE`, `FRONTEND_ORIGIN` (comma-separated CORS allowlist; always also allow `http://localhost:5173` & `http://127.0.0.1:5173` in dev), `DEMO_MODE`, `LOG_LEVEL`, scheduling weights `W_DEADLINE,W_WAITING,W_FAIRNESS,W_PREFERENCE`.
+## Backend config (env)
+`DATABASE_URL` (empty -> `sqlite:///./lablink.db`; `postgres://` / `postgresql://` -> `postgresql+psycopg://`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_INPUT_CHARS`, `CAMPUS_TIMEZONE`, `FRONTEND_ORIGIN` (comma-separated CORS allowlist; always also allow `http://localhost:5173` & `http://127.0.0.1:5173` in dev), `DEMO_MODE`, `DEMO_RESET_ENABLED` (default false everywhere; see "Controlled demo reset"), `LOG_LEVEL`, `SOLVER_TIME_LIMIT_SECONDS` (default 5), scheduling weights `W_DEADLINE,W_WAITING,W_FAIRNESS,W_PREFERENCE`.
 On startup (in lifespan): when `DEMO_MODE=true`, run alembic upgrade (or `create_all` fallback) + idempotent seed so the hosted demo works with zero manual steps. Seed is idempotent and refreshes time-relative demo bookings only if none exist in the future.
 
 
@@ -179,8 +183,8 @@ On startup (in lifespan): when `DEMO_MODE=true`, run alembic upgrade (or `create
 
 
 ## Controlled demo reset (roadmap H.5)
-Public, unauthenticated apps must never expose an unrestricted destructive endpoint, so the reset is **off by default in production** and guarded.
-- Enabled only when `DEMO_MODE=true` AND `DEMO_RESET_ENABLED` is true (default: false when `APP_ENV=production`, true otherwise). `GET /config/public` returns `demo_reset_enabled: boolean` (true only when both hold).
+Public, unauthenticated apps must never expose an unrestricted destructive endpoint, so the reset is **off by default in every environment** (local development included, and a deployment that forgets `APP_ENV` stays safe) and guarded.
+- Enabled only when `DEMO_MODE=true` AND `DEMO_RESET_ENABLED` is true (default: **false** in every environment; opt in with `DEMO_RESET_ENABLED=true`, intended for local use only, never on a public deployment). `GET /config/public` returns `demo_reset_enabled: boolean` (true only when both hold).
 - `POST /demo/reset-token` -> `{"token": string, "expires_in_seconds": 120}`. One-time, in-memory, rate limited 5/min/IP (429 `RATE_LIMITED`). Disabled -> 403 `DEMO_RESET_DISABLED`.
 - `POST /demo/reset` body `{"token": string, "confirm": "RESET DEMO SCENARIO"}` -> `{"status":"reset","restored":{"requests_removed":n,"bookings_removed":n,"projects_removed":n,"maintenance_removed":n}}`. Wrong confirm text / bad, expired or used token -> 400 `VALIDATION_ERROR`. Disabled -> 403.
 - Only non-seed rows are removed (seed ids are recognised by prefix: `req-seed-`, `req-hist-`, `bk-seed-`, `bk-hist-`, `prj-seed-`); seed requests are restored to their seeded state; the catalogue (departments, labs, equipment types, units) is never touched; tables are never dropped.
