@@ -11,10 +11,15 @@ from app.services import ai_service, demo_service
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
-token_limiter = ai_service.SlidingWindowLimiter(5, 60.0)
+TOKEN_LIMIT_PER_WINDOW = 5
+TOKEN_LIMIT_WINDOW_SECONDS = 60.0
+
+token_limiter = ai_service.SlidingWindowLimiter(TOKEN_LIMIT_PER_WINDOW, TOKEN_LIMIT_WINDOW_SECONDS)
 
 
 class ResetBody(BaseModel):
+    """Single-use reset token plus the typed confirmation phrase."""
+
     token: str = ""
     confirm: str = ""
 
@@ -25,14 +30,14 @@ def _require_enabled() -> None:
 
 
 @router.post("/reset-token")
-def reset_token(request: Request):
+def reset_token(request: Request) -> dict[str, str | int]:
     _require_enabled()
     rate_limit(token_limiter, request)
     return {"token": demo_service.issue_token(), "expires_in_seconds": demo_service.TOKEN_TTL_SECONDS}
 
 
 @router.post("/reset")
-def reset(body: ResetBody, request: Request, db: Session = Depends(get_db)):
+def reset(body: ResetBody, request: Request, db: Session = Depends(get_db)) -> dict:
     _require_enabled()
     if body.confirm != demo_service.CONFIRM_TEXT:
         raise ValidationFailed(f'Type "{demo_service.CONFIRM_TEXT}" to confirm.', {"field": "confirm"})

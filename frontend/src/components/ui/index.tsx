@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { cloneElement, isValidElement, useEffect, useRef, type ButtonHTMLAttributes, type ElementType, type HTMLAttributes, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { ApiError } from '@/services/apiClient'
 import { humanize } from '@/lib/format'
 import {
@@ -7,7 +7,7 @@ import {
 
 export * from './icons'
 
-export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
+export const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ')
 
 /* ---------- Button ---------- */
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'ai' | 'success'
@@ -48,7 +48,7 @@ export function Button({
 }
 
 /* ---------- Card ---------- */
-export function Card({ className, children, as: Tag = 'div', ...rest }: { className?: string; children: ReactNode; as?: any } & Record<string, any>) {
+export function Card({ className, children, as: Tag = 'div', ...rest }: { className?: string; children: ReactNode; as?: ElementType } & HTMLAttributes<HTMLElement>): ReactNode {
   return (
     <Tag {...rest} className={cx('rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5', className)}>
       {children}
@@ -90,7 +90,7 @@ export function PageHeader({ title, subtitle, actions, icon, accent = 'blue' }: 
 }
 
 /** Section heading used inside pages. */
-export function SectionTitle({ children, className, as: Tag = 'h2' }: { children: ReactNode; className?: string; as?: any }) {
+export function SectionTitle({ children, className, as: Tag = 'h2' }: { children: ReactNode; className?: string; as?: ElementType }): ReactNode {
   return <Tag className={cx('text-base font-semibold text-fg sm:text-[17px]', className)}>{children}</Tag>
 }
 

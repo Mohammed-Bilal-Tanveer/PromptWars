@@ -37,6 +37,7 @@ export type NotificationType =
   | 'booking_cancelled'
   | 'booking_completed'
   | 'maintenance'
+  | 'demo_reset'
 
 export interface ScenePosition {
   x: number
@@ -51,6 +52,7 @@ export interface PublicConfig {
   ai_configured: boolean
   campus_timezone: string
   data_label: string
+  demo_reset_enabled: boolean
 }
 
 export interface Department {
@@ -200,13 +202,13 @@ export interface ProjectAnalyseRequest {
 export interface MatchCandidate {
   equipment_type_id: string
   name: string
-  category: string
-  laboratory_id: string
-  laboratory_name: string
-  department_id: string
-  department_name: string
-  building: string
-  room_label: string
+  category: string | null
+  laboratory_id: string | null
+  laboratory_name: string | null
+  department_id: string | null
+  department_name: string | null
+  building: string | null
+  room_label: string | null
   score: number
   match_type: 'exact_name' | 'category' | 'capability' | 'alternative'
   evidence: string[]

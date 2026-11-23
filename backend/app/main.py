@@ -1,5 +1,6 @@
 """LabLink API entrypoint."""
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -32,7 +33,8 @@ def init_database() -> None:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Configure logging and (in demo mode) migrate + seed the database at startup."""
     settings = get_settings()
     setup_logging()
     if settings.demo_mode:
@@ -44,6 +46,7 @@ async def lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
+    """Build the FastAPI application (CORS, error handlers, v1 router)."""
     settings = get_settings()
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.add_middleware(

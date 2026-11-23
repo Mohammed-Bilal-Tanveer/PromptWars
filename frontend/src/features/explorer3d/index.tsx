@@ -58,12 +58,15 @@ export default function Explorer3DPage() {
   return <Explorer key={attempt} onContextLost={() => setLost(true)} />
 }
 
+/** Live equipment badges refresh cadence (ms). */
+const EQUIPMENT_REFETCH_MS = 15000
+
 function Explorer({ onContextLost }: { onContextLost: () => void }) {
   const eqQuery = useEquipmentList({ page_size: 100 })
   // refetch cadence for live badges (the shared hook has no interval option, so tick an invalidate-free refetch)
   const refetch = eqQuery.refetch
   useEffect(() => {
-    const t = setInterval(() => { if (!document.hidden) void refetch() }, 15000)
+    const t = setInterval(() => { if (!document.hidden) void refetch() }, EQUIPMENT_REFETCH_MS)
     return () => clearInterval(t)
   }, [refetch])
   const equipment = useMemo(() => eqQuery.data?.items ?? [], [eqQuery.data])

@@ -1,9 +1,11 @@
+"""Equipment catalogue search, recommendations and unit status."""
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MAX_QUERY_LENGTH, page_envelope
 from app.core.database import get_db
 from app.core.errors import NotFound, ValidationFailed
 from app.models import Booking, EquipmentType, EquipmentUnit
@@ -20,6 +22,19 @@ from app.utils_time import now_utc, to_utc
 
 router = APIRouter(tags=["equipment"])
 
+# Recommendation scoring: capability coverage weight plus a bonus when a unit is free now.
+RECOMMEND_COVERAGE_WEIGHT = 0.85
+RECOMMEND_AVAILABLE_BONUS = 15
+RELATED_EQUIPMENT_LIMIT = 4
+UPCOMING_BOOKINGS_LIMIT = 10
+
+
+def _get_type_or_404(db: Session, equipment_id: str) -> EquipmentType:
+    et = db.get(EquipmentType, equipment_id)
+    if not et:
+        raise NotFound(f"Equipment '{equipment_id}' not found")
+    return et
+
 
 def _haystack(e: dict, et: EquipmentType) -> str:
     specs = " ".join(f"{k} {v}" for k, v in (et.specifications or {}).items())
@@ -29,11 +44,11 @@ def _haystack(e: dict, et: EquipmentType) -> str:
 
 
 @router.get("/equipment")
-def list_equipment(q: str | None = Query(default=None, max_length=200), department_id: str | None = None,
+def list_equipment(q: str | None = Query(default=None, max_length=MAX_QUERY_LENGTH), department_id: str | None = None,
                    laboratory_id: str | None = None, category: str | None = None, status: str | None = None,
                    available_from: datetime | None = None, available_to: datetime | None = None,
                    sort: str = Query("relevance", pattern="^(relevance|availability|name|utilisation)$"),
-                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)):
+                   page: int = Query(1, ge=1), page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE), db: Session = Depends(get_db)):
     stmt = select(EquipmentType).options(selectinload(EquipmentType.units), selectinload(EquipmentType.laboratory),
                                          selectinload(EquipmentType.department))
     if department_id:
@@ -72,7 +87,7 @@ def list_equipment(q: str | None = Query(default=None, max_length=200), departme
         scored.sort(key=lambda x: (-x[0], -x[1]["quantity_available"], x[1]["name"].lower()))
     total = len(scored)
     items = strip_private([s for _, s in scored[(page - 1) * page_size: page * page_size]])
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
+    return page_envelope(items, total, page, page_size)
 
 
 @router.get("/equipment/categories")
@@ -94,7 +109,7 @@ def recommendations(capabilities: str = "", limit: int = Query(6, ge=1, le=20), 
         if not hit:
             continue
         s = summaries[et.id]
-        score = round(100 * len(hit) / len(wanted) * 0.85 + (15 if s["quantity_available"] > 0 else 0), 1)
+        score = round(100 * len(hit) / len(wanted) * RECOMMEND_COVERAGE_WEIGHT + (RECOMMEND_AVAILABLE_BONUS if s["quantity_available"] > 0 else 0), 1)
         ev = [f"Supports {c.replace('_', ' ')}" for c in hit]
         ev.append(f"{s['quantity_available']} of {s['quantity_total']} units free now")
         out.append({**s, "score": score, "evidence": ev})
@@ -121,9 +136,7 @@ def set_unit_status(unit_id: str, body: UnitStatusBody, db: Session = Depends(ge
 
 @router.get("/equipment/{equipment_id}")
 def get_equipment(equipment_id: str, db: Session = Depends(get_db)):
-    et = db.get(EquipmentType, equipment_id)
-    if not et:
-        raise NotFound(f"Equipment '{equipment_id}' not found")
+    et = _get_type_or_404(db, equipment_id)
     summary = equipment_summaries(db, [et])[0]
     states = summary.pop("_states")
     units = [unit_dict(u, states[u.id]) for u in et.units]
@@ -131,18 +144,16 @@ def get_equipment(equipment_id: str, db: Session = Depends(get_db)):
     caps = set(et.capabilities or [])
     rel = [o for o in others if o.category == et.category or caps & set(o.capabilities or [])]
     rel.sort(key=lambda o: (o.category != et.category, -len(caps & set(o.capabilities or []))))
-    alts = strip_private(equipment_summaries(db, rel[:4])) if rel else []
+    alts = strip_private(equipment_summaries(db, rel[:RELATED_EQUIPMENT_LIMIT])) if rel else []
     upcoming = db.scalars(
         select(Booking).join(EquipmentUnit, EquipmentUnit.id == Booking.equipment_unit_id)
         .where(EquipmentUnit.equipment_type_id == et.id, Booking.status == "confirmed", Booking.end_at >= now_utc())
-        .order_by(Booking.start_at).limit(10)).all()
+        .order_by(Booking.start_at).limit(UPCOMING_BOOKINGS_LIMIT)).all()
     return {**summary, "units": units, "alternatives": alts, "upcoming_bookings": [booking_dict(b) for b in upcoming]}
 
 
 @router.get("/equipment/{equipment_id}/units")
 def get_units(equipment_id: str, db: Session = Depends(get_db)):
-    et = db.get(EquipmentType, equipment_id)
-    if not et:
-        raise NotFound(f"Equipment '{equipment_id}' not found")
+    et = _get_type_or_404(db, equipment_id)
     states = av.unit_states(db, list(et.units))
     return [unit_dict(u, states[u.id]) for u in et.units]

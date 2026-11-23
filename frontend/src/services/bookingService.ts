@@ -5,7 +5,7 @@ import type {
 
 export const bookingService = {
   createRequest: (b: BookingRequestCreate) => api.post<BookingRequest>('/booking-requests', b),
-  listRequests: (q: BookingRequestQuery = {}) => api.get<Paginated<BookingRequest>>('/booking-requests', q as any),
+  listRequests: (q: BookingRequestQuery = {}) => api.get<Paginated<BookingRequest>>('/booking-requests', q),
   getRequest: (id: string) => api.get<BookingRequest>(`/booking-requests/${id}`),
   cancelRequest: (id: string) => api.post<BookingRequest>(`/booking-requests/${id}/cancel`),
   acceptAlternative: (id: string) => api.post<ApprovalDecision>(`/booking-requests/${id}/accept-alternative`),

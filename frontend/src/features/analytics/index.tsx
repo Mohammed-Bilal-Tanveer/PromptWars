@@ -11,7 +11,7 @@ import { pct } from '@/lib/format'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/lib/routes'
 
-function ChartCard({ title, columns, rows, children }: { title: string; columns: { key: string; label: string }[]; rows: Record<string, string | number>[]; children: ReactNode }) {
+function ChartCard<T extends object>({ title, columns, rows, children }: { title: string; columns: { key: keyof T & string; label: string }[]; rows: T[]; children: ReactNode }) {
   const [table, setTable] = useState(false)
   return (
     <Card className="min-w-0">
@@ -24,7 +24,7 @@ function ChartCard({ title, columns, rows, children }: { title: string; columns:
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{title}</caption>
             <thead className="sticky top-0 bg-surface2 text-xs font-medium text-muted"><tr>{columns.map((c) => <th key={c.key} scope="col" className="px-3 py-2">{c.label}</th>)}</tr></thead>
-            <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-line hover:bg-surface2/60">{columns.map((c) => <td key={c.key} className="px-3 py-2 tabular-nums">{r[c.key]}</td>)}</tr>)}</tbody>
+            <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-line hover:bg-surface2/60">{columns.map((c) => <td key={c.key} className="px-3 py-2 tabular-nums">{String(r[c.key as keyof T] ?? '')}</td>)}</tr>)}</tbody>
           </table>
         </div>
       ) : rows.length === 0 ? <EmptyState title="No data yet" /> : (
@@ -35,23 +35,36 @@ function ChartCard({ title, columns, rows, children }: { title: string; columns:
 }
 
 /* One coherent chart palette: blue, teal, amber, slate. */
-const C = { blue: '#2563eb', teal: '#0d9488', amber: '#d97706', slate: '#64748b', grid: '#eaecf0' }
-const axis = { stroke: '#cfd4dc', tick: { fill: '#475467', fontSize: 12 }, tickLine: false }
+const C = { blue: '#2563eb', teal: '#0d9488', amber: '#d97706', slate: '#64748b', grid: '#eaecf0', axis: '#cfd4dc', text: '#475467', ink: '#101828', border: '#e4e7ec' }
+const axis = { stroke: C.axis, tick: { fill: C.text, fontSize: 12 }, tickLine: false }
 const grid = { stroke: C.grid, vertical: false }
+
+/* Chart layout constants. */
+const BAR_RADIUS: [number, number, number, number] = [4, 4, 0, 0]
+const BAR_MAX_WIDTH = 44
+const PEAK_BAR_MAX_WIDTH = 28
+const LINE_STROKE_WIDTH = 2
+const DASH_PATTERN = '5 3'
+const TICK_FONT_SIZE_SMALL = 11
+const LEGEND_FONT_SIZE = 12
+const TICK_ANGLE = -30
+const TICK_AREA_HEIGHT = 84
+const DEPT_TICK_AREA_HEIGHT = 56
+const LAB_CHART_MARGIN = { top: 4, right: 8, left: 28, bottom: 0 }
 const tip = {
   cursor: { fill: 'rgba(16,24,40,0.04)' },
-  contentStyle: { background: '#ffffff', border: '1px solid #e4e7ec', borderRadius: 8, color: '#101828', boxShadow: '0 4px 12px rgba(16,24,40,.08)', fontSize: 13 },
-  labelStyle: { color: '#101828', fontWeight: 600 },
+  contentStyle: { background: '#ffffff', border: `1px solid ${C.border}`, borderRadius: 8, color: C.ink, boxShadow: '0 4px 12px rgba(16,24,40,.08)', fontSize: 13 },
+  labelStyle: { color: C.ink, fontWeight: 600 },
 }
 
-export function AnalyticsDashboard({ embedded: _embedded }: { embedded?: boolean }) {
+export function AnalyticsDashboard({ embedded }: { embedded?: boolean }) {
   const ov = useAnalyticsOverview()
   const ut = useAnalyticsUtilisation()
   const tr = useAnalyticsTrends()
 
   return (
     <div className="space-y-6">
-      {!_embedded && <PageHeader accent="teal" icon={<IconChart size={20} />} title="Resource analytics" subtitle="Utilisation, demand and review activity across departments." />}
+      {!embedded && <PageHeader accent="teal" icon={<IconChart size={20} />} title="Resource analytics" subtitle="Utilisation, demand and review activity across departments." />}
       <QueryBoundary query={ov} loadingLabel="Loading overview…" skeleton={<div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <div key={i} className="rounded-2xl border border-line bg-surface p-4"><Skeleton className="h-3 w-1/2" /><Skeleton className="mt-3 h-7 w-1/3" /></div>)}</div>}>
         {(o) => (
           <>
@@ -80,19 +93,47 @@ export function AnalyticsDashboard({ embedded: _embedded }: { embedded?: boolean
             <ChartCard
               title={`Utilisation by department (%, last ${ut.data.window_days} days)`}
               columns={[{ key: 'name', label: 'Department' }, { key: 'booked_hours', label: 'Booked h' }, { key: 'capacity_hours', label: 'Capacity h' }, { key: 'utilisation_pct', label: 'Utilisation %' }]}
-              rows={ut.data.by_department as any}
+              rows={ut.data.by_department}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ut.data.by_department}><CartesianGrid {...grid} /><XAxis dataKey="name" {...axis} /><YAxis {...axis} unit="%" /><Tooltip {...tip} /><Bar dataKey="utilisation_pct" name="Utilisation %" fill={C.blue} radius={[4, 4, 0, 0]} maxBarSize={44} /></BarChart>
+                <BarChart data={ut.data.by_department}>
+                  <CartesianGrid {...grid} />
+                  <XAxis
+                    dataKey="name"
+                    {...axis}
+                    tick={{ fill: C.text, fontSize: TICK_FONT_SIZE_SMALL }}
+                    interval={0}
+                    angle={TICK_ANGLE}
+                    textAnchor="end"
+                    height={DEPT_TICK_AREA_HEIGHT}
+                  />
+                  <YAxis {...axis} unit="%" />
+                  <Tooltip {...tip} />
+                  <Bar dataKey="utilisation_pct" name="Utilisation %" fill={C.blue} radius={BAR_RADIUS} maxBarSize={BAR_MAX_WIDTH} />
+                </BarChart>
               </ResponsiveContainer>
             </ChartCard>
             <ChartCard
               title="Utilisation by laboratory (%)"
               columns={[{ key: 'name', label: 'Laboratory' }, { key: 'booked_hours', label: 'Booked h' }, { key: 'capacity_hours', label: 'Capacity h' }, { key: 'utilisation_pct', label: 'Utilisation %' }]}
-              rows={ut.data.by_laboratory as any}
+              rows={ut.data.by_laboratory}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ut.data.by_laboratory} margin={{ top: 4, right: 8, left: 28, bottom: 0 }}><CartesianGrid {...grid} /><XAxis dataKey="name" {...axis} tick={{ fill: "#475467", fontSize: 11 }} interval={0} angle={-30} textAnchor="end" height={84} /><YAxis {...axis} unit="%" /><Tooltip {...tip} /><Bar dataKey="utilisation_pct" name="Utilisation %" fill={C.teal} radius={[4, 4, 0, 0]} maxBarSize={44} /></BarChart>
+                <BarChart data={ut.data.by_laboratory} margin={LAB_CHART_MARGIN}>
+                  <CartesianGrid {...grid} />
+                  <XAxis
+                    dataKey="name"
+                    {...axis}
+                    tick={{ fill: C.text, fontSize: TICK_FONT_SIZE_SMALL }}
+                    interval={0}
+                    angle={TICK_ANGLE}
+                    textAnchor="end"
+                    height={TICK_AREA_HEIGHT}
+                  />
+                  <YAxis {...axis} unit="%" />
+                  <Tooltip {...tip} />
+                  <Bar dataKey="utilisation_pct" name="Utilisation %" fill={C.teal} radius={BAR_RADIUS} maxBarSize={BAR_MAX_WIDTH} />
+                </BarChart>
               </ResponsiveContainer>
             </ChartCard>
             <ChartCard
@@ -101,16 +142,30 @@ export function AnalyticsDashboard({ embedded: _embedded }: { embedded?: boolean
               rows={tr.data.peak_hours.map((p) => ({ hour: `${String(p.hour).padStart(2, '0')}:00`, bookings: p.bookings }))}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tr.data.peak_hours}><CartesianGrid {...grid} /><XAxis dataKey="hour" {...axis} /><YAxis {...axis} allowDecimals={false} /><Tooltip {...tip} /><Bar dataKey="bookings" name="Bookings" fill={C.slate} radius={[4, 4, 0, 0]} maxBarSize={28} /></BarChart>
+                <BarChart data={tr.data.peak_hours}>
+                  <CartesianGrid {...grid} />
+                  <XAxis dataKey="hour" {...axis} />
+                  <YAxis {...axis} allowDecimals={false} />
+                  <Tooltip {...tip} />
+                  <Bar dataKey="bookings" name="Bookings" fill={C.slate} radius={BAR_RADIUS} maxBarSize={PEAK_BAR_MAX_WIDTH} />
+                </BarChart>
               </ResponsiveContainer>
             </ChartCard>
             <ChartCard
               title="Daily bookings vs requests"
               columns={[{ key: 'date', label: 'Date' }, { key: 'bookings', label: 'Bookings' }, { key: 'requests', label: 'Requests' }]}
-              rows={tr.data.daily as any}
+              rows={tr.data.daily}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={tr.data.daily}><CartesianGrid {...grid} /><XAxis dataKey="date" {...axis} tickFormatter={(d: string) => d.slice(5)} /><YAxis {...axis} allowDecimals={false} /><Tooltip {...tip} /><Legend iconType="plainline" wrapperStyle={{ fontSize: 12, color: '#475467' }} /><Line type="monotone" dataKey="bookings" name="Bookings" stroke={C.blue} strokeWidth={2} dot={false} /><Line type="monotone" dataKey="requests" name="Requests" stroke={C.amber} strokeWidth={2} strokeDasharray="5 3" dot={false} /></LineChart>
+                <LineChart data={tr.data.daily}>
+                  <CartesianGrid {...grid} />
+                  <XAxis dataKey="date" {...axis} tickFormatter={(d: string) => d.slice(5)} />
+                  <YAxis {...axis} allowDecimals={false} />
+                  <Tooltip {...tip} />
+                  <Legend iconType="plainline" wrapperStyle={{ fontSize: LEGEND_FONT_SIZE, color: C.text }} />
+                  <Line type="monotone" dataKey="bookings" name="Bookings" stroke={C.blue} strokeWidth={LINE_STROKE_WIDTH} dot={false} />
+                  <Line type="monotone" dataKey="requests" name="Requests" stroke={C.amber} strokeWidth={LINE_STROKE_WIDTH} strokeDasharray={DASH_PATTERN} dot={false} />
+                </LineChart>
               </ResponsiveContainer>
             </ChartCard>
           </div>

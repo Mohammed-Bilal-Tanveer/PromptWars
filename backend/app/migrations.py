@@ -11,6 +11,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 def alembic_config(database_url: str | None = None) -> Config:
+    """Build an alembic Config rooted at the backend directory."""
     cfg = Config(str(BACKEND_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
     if database_url:
@@ -19,4 +20,5 @@ def alembic_config(database_url: str | None = None) -> Config:
 
 
 def upgrade_head(database_url: str | None = None) -> None:
+    """Upgrade the database to the latest revision."""
     command.upgrade(alembic_config(database_url), "head")

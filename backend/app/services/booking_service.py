@@ -1,7 +1,9 @@
 """Booking request creation, cancellation and transactional confirmation."""
+import logging
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import dialect_name
@@ -9,12 +11,16 @@ from app.core.errors import InvalidState, NotFound, SlotConflict, ValidationFail
 from app.models import Booking, BookingRequest, Department, EquipmentType, EquipmentUnit, Project
 from app.services import availability_service as av
 from app.services.notification_service import audit, notify
+from app.services.priority import compute_priority
 from app.utils_time import iso, now_utc, to_utc
+
+log = logging.getLogger("lablink.booking")
 
 ACTIVE_STATUSES = ("pending_review", "waitlisted", "alternative_proposed")
 
 
 def get_equipment(db: Session, equipment_id: str) -> EquipmentType:
+    """Return the equipment type or raise NotFound."""
     et = db.get(EquipmentType, equipment_id)
     if not et:
         raise NotFound(f"Equipment '{equipment_id}' not found")
@@ -26,18 +32,23 @@ def find_alternatives(db: Session, et: EquipmentType, start: datetime, end: date
     return av.find_alternatives(db, et, start, end, limit=limit, exclude_booking_ids=exclude_booking_ids)
 
 
-def _priority(db, *, deadline, created_at, dept_id, name, hours, start):
-    try:
-        from app.services.priority import compute_priority
+NEUTRAL_PRIORITY_SCORE = 0.5
+NEUTRAL_PRIORITY_FACTORS = {"deadline_urgency": 0.5, "waiting_time": 0.0, "fairness": 0.5, "preference_fit": 0.5}
 
+
+def _priority(db, *, deadline, created_at, dept_id, name, hours, start) -> tuple[float, dict]:
+    """Score a request; a scoring failure must never block request creation (neutral fallback)."""
+    try:
         r = compute_priority(db, deadline=deadline, created_at=created_at, requester_department_id=dept_id,
                              requester_name=name, estimated_hours=hours, requested_start=start)
         return float(r["score"]), r["factors"]
-    except Exception:  # noqa: BLE001 - never block a request on scoring
-        return 0.5, {"deadline_urgency": 0.5, "waiting_time": 0.0, "fairness": 0.5, "preference_fit": 0.5}
+    except (SQLAlchemyError, ArithmeticError, KeyError, TypeError, ValueError):
+        log.warning("priority scoring failed; using neutral priority", exc_info=True)
+        return NEUTRAL_PRIORITY_SCORE, dict(NEUTRAL_PRIORITY_FACTORS)
 
 
 def create_request(db: Session, data) -> BookingRequest:
+    """Validate and create a booking request (auto-confirming or queueing it for review)."""
     et = get_equipment(db, data.equipment_type_id)
     if not db.get(Department, data.requester_department_id):
         raise ValidationFailed("Unknown requester department", {"reasons": ["Unknown requester department."]})
@@ -107,6 +118,7 @@ def create_request(db: Session, data) -> BookingRequest:
 
 
 def get_request(db: Session, request_id: str) -> BookingRequest:
+    """Return the booking request or raise NotFound."""
     r = db.get(BookingRequest, request_id)
     if not r:
         raise NotFound(f"Booking request '{request_id}' not found")
@@ -146,6 +158,7 @@ def confirm_booking(db: Session, req: BookingRequest, start: datetime, end: date
 
 
 def cancel_request(db: Session, request_id: str) -> BookingRequest:
+    """Cancel a request that is still active or confirmed; raises InvalidState otherwise."""
     r = get_request(db, request_id)
     if r.status not in ("pending_review", "waitlisted", "alternative_proposed", "confirmed", "approved"):
         raise InvalidState(f"Request in status '{r.status}' cannot be cancelled")
@@ -161,6 +174,7 @@ def cancel_request(db: Session, request_id: str) -> BookingRequest:
 
 
 def cancel_booking(db: Session, booking_id: str) -> Booking:
+    """Cancel a booking or raise NotFound."""
     b = db.get(Booking, booking_id)
     if not b:
         raise NotFound(f"Booking '{booking_id}' not found")
@@ -178,6 +192,7 @@ def cancel_booking(db: Session, booking_id: str) -> Booking:
 
 
 def accept_alternative(db: Session, request_id: str) -> tuple[BookingRequest, Booking]:
+    """Accept the proposed alternative slot and confirm it as a booking."""
     r = get_request(db, request_id)
     if r.status != "alternative_proposed" or not r.proposed_start_at or not r.proposed_end_at:
         raise InvalidState("Request has no proposed alternative to accept")

@@ -9,8 +9,8 @@ export interface FindPlan {
 }
 
 /** Where to stand in front of a bench (towards the door, so the collider is not in the way). */
-export const benchStand = (b: BuildingDef, a: { x: number; z: number }) => ({ x: a.x, z: a.z + b.facing * 1.7 })
-export const entranceOf = (b: BuildingDef) => doorOutside(b, 3)
+export const benchStand = (b: BuildingDef, a: { x: number; z: number }): { x: number; z: number } => ({ x: a.x, z: a.z + b.facing * 1.7 })
+export const entranceOf = (b: BuildingDef): { x: number; z: number } => doorOutside(b, 3)
 
 /**
  * Resolve a Find-in-3D-Campus request against the REAL equipment list.

@@ -12,12 +12,12 @@ import copy
 import hashlib
 import json
 import logging
-import os
 import re
 import threading
 import time
 from typing import Any
 
+from app.core.config import get_settings
 from app.schemas.ai import EquipmentRequirement, LLMAnalysis, ProjectAnalyseRequest
 
 log = logging.getLogger("lablink.ai")
@@ -33,33 +33,20 @@ CACHE_TTL_SECONDS = 600
 
 
 # --------------------------------------------------------------------------- settings
-def _setting(name: str, default: Any) -> Any:
-    try:
-        from app.core.config import get_settings
-
-        val = getattr(get_settings(), name.lower(), None)
-        if val not in (None, ""):
-            return val
-    except Exception:
-        pass
-    env = os.environ.get(name)
-    return env if env not in (None, "") else default
-
-
 def openai_api_key() -> str | None:
-    return _setting("OPENAI_API_KEY", None)
+    return get_settings().openai_api_key or None
 
 
 def openai_model() -> str:
-    return str(_setting("OPENAI_MODEL", "gpt-4o-mini"))
+    return get_settings().openai_model
 
 
 def openai_timeout() -> float:
-    return float(_setting("OPENAI_TIMEOUT_SECONDS", 20))
+    return float(get_settings().openai_timeout_seconds)
 
 
 def openai_max_chars() -> int:
-    return int(_setting("OPENAI_MAX_INPUT_CHARS", 6000))
+    return int(get_settings().openai_max_input_chars)
 
 
 def ai_configured() -> bool:

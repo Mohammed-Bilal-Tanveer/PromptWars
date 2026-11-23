@@ -1,8 +1,9 @@
+const MS_PER_DAY = 86_400_000
 let CAMPUS_TZ = 'Asia/Kolkata'
-export const setCampusTimezone = (tz: string) => {
+export const setCampusTimezone = (tz: string): void => {
   if (tz) CAMPUS_TZ = tz
 }
-export const getCampusTimezone = () => CAMPUS_TZ
+export const getCampusTimezone = (): string => CAMPUS_TZ
 
 const fmt = (opts: Intl.DateTimeFormatOptions) => (iso?: string | null) =>
   iso ? new Intl.DateTimeFormat('en-GB', { timeZone: CAMPUS_TZ, ...opts }).format(new Date(iso)) : '—'
@@ -21,13 +22,13 @@ export function formatRange(startIso: string, endIso: string): string {
 
 /** Today's date as YYYY-MM-DD in campus timezone (+ optional day offset). */
 export function campusDate(offsetDays = 0): string {
-  const d = new Date(Date.now() + offsetDays * 86_400_000)
+  const d = new Date(Date.now() + offsetDays * MS_PER_DAY)
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: CAMPUS_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
   return parts // en-CA => YYYY-MM-DD
 }
 
 /** Build a naive campus-local ISO string the backend interprets in CAMPUS_TIMEZONE. */
-export const localISO = (date: string, time: string) => `${date}T${time.length === 5 ? time : time.slice(0, 5)}`
+export const localISO = (date: string, time: string): string => `${date}T${time.length === 5 ? time : time.slice(0, 5)}`
 
 /** YYYY-MM-DD in campus tz for an ISO instant. */
 export function campusDateOf(iso: string): string {
@@ -38,9 +39,9 @@ export function campusTimeOf(iso: string): string {
   return formatTime(iso)
 }
 
-export const humanize = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+export const humanize = (s: string): string => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 export const pct = (n: number | null | undefined, digits = 0) => (n == null ? '—' : `${n.toFixed(digits)}%`)
-export const minutesToLabel = (m: number) => (m % 60 === 0 ? `${m / 60} h` : m > 60 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${m} min`)
+export const minutesToLabel = (m: number): string => (m % 60 === 0 ? `${m / 60} h` : m > 60 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${m} min`)
 
 export const REQUEST_STATUS_LABEL: Record<string, string> = {
   pending_review: 'Pending review',

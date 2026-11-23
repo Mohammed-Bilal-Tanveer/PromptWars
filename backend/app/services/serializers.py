@@ -22,10 +22,12 @@ DATA_LABEL = "Sample campus data"
 
 
 def dept_pos(d) -> dict:
+    """Return the department scene position as an x/y/z dict."""
     return {"x": d.scene_position_x, "y": d.scene_position_y, "z": d.scene_position_z}
 
 
 def unit_dict(u: EquipmentUnit, state: dict | None = None) -> dict:
+    """Serialise an equipment unit with its live state."""
     state = state or {}
     return {
         "id": u.id, "equipment_type_id": u.equipment_type_id, "inventory_code": u.inventory_code,
@@ -36,6 +38,7 @@ def unit_dict(u: EquipmentUnit, state: dict | None = None) -> dict:
 
 
 def equipment_summaries(db: Session, ets: list[EquipmentType]) -> list[dict]:
+    """Serialise equipment types with unit states and counts."""
     now = now_utc()
     units = [u for et in ets for u in et.units]
     states = av.unit_states(db, units, now)
@@ -76,12 +79,14 @@ def equipment_summaries(db: Session, ets: list[EquipmentType]) -> list[dict]:
 
 
 def strip_private(items: list[dict]) -> list[dict]:
+    """Remove the internal ``_states`` key from each item (in place) before public output."""
     for i in items:
         i.pop("_states", None)
     return items
 
 
 def booking_dict(b: Booking) -> dict:
+    """Serialise a booking."""
     u = b.equipment_unit
     et = u.equipment_type
     req = b.booking_request
@@ -96,6 +101,7 @@ def booking_dict(b: Booking) -> dict:
 
 
 def audit_item(a: AuditEvent) -> dict:
+    """Serialise an audit event."""
     return {"id": a.id, "action": a.event_type, "description": a.description, "actor": a.actor or "System",
             "note": a.note, "created_at": iso(a.created_at)}
 
@@ -111,6 +117,7 @@ def queue_position(db: Session, r: BookingRequest) -> int | None:
 
 
 def request_dict(db: Session, r: BookingRequest, detail: bool = False) -> dict:
+    """Serialise a booking request (optionally with detail)."""
     et = r.equipment_type
     booking = next((b for b in sorted(r.bookings, key=lambda x: x.created_at) if b.status != "cancelled"), None)
     if booking is None and r.bookings:
@@ -181,6 +188,7 @@ def request_with_extras(db: Session, r: BookingRequest, detail: bool = False) ->
 
 
 def maintenance_dict(m: MaintenanceWindow) -> dict:
+    """Serialise a maintenance window."""
     u = m.equipment_unit
     et = u.equipment_type
     return {"id": m.id, "equipment_unit_id": m.equipment_unit_id, "unit_name": u.unit_name,
@@ -189,12 +197,14 @@ def maintenance_dict(m: MaintenanceWindow) -> dict:
 
 
 def notification_dict(n: Notification) -> dict:
+    """Serialise a notification."""
     return {"id": n.id, "title": n.title, "message": n.message, "type": n.type,
             "related_entity_type": n.related_entity_type, "related_entity_id": n.related_entity_id,
             "is_read": n.is_read, "created_at": iso(n.created_at)}
 
 
 def lab_dict(db: Session, lab: Laboratory, summaries: dict | None = None, states: dict | None = None) -> dict:
+    """Serialise a laboratory with its equipment summaries."""
     now = now_utc()
     ets = lab.equipment_types
     units = [u for et in ets for u in et.units]
@@ -238,6 +248,7 @@ def dept_dict(db: Session, dep: Department, states: dict | None = None, util: di
 
 
 def count(db: Session, model, *where) -> int:
+    """Count rows of ``model`` matching the optional ``where`` clauses."""
     return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
 
 

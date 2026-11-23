@@ -5,12 +5,12 @@ export interface MatchedItem { equipmentId: string; name: string; departmentId: 
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`)
 
-/** Equipment the analysis matched (best candidate per requirement); derived only from the real analysis. */
+/** Equipment the analysis matched (best candidate per requirement, when it carries a department); derived only from the real analysis. */
 export function matchedItems(analysis: AnalysisResult | null): MatchedItem[] {
   if (!analysis) return []
   const out: MatchedItem[] = []
   for (const m of analysis.matches) {
-    if (m.best) out.push({ equipmentId: m.best.equipment_type_id, name: m.best.name, departmentId: m.best.department_id, requirement: m.requirement_name })
+    if (m.best?.department_id) out.push({ equipmentId: m.best.equipment_type_id, name: m.best.name, departmentId: m.best.department_id, requirement: m.requirement_name })
   }
   return out
 }

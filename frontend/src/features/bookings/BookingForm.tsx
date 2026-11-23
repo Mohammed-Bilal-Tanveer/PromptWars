@@ -10,6 +10,9 @@ import { AlternativeList, apiDetails, fromMin, toMin } from './parts'
 
 type Errs = Partial<Record<'title' | 'name' | 'dept' | 'date' | 'start' | 'end' | 'purpose' | 'hours', string>>
 
+/** Server-side limit for the free-text purpose field. */
+const PURPOSE_MAX = 1000
+
 const FIELD_ORDER = ['title', 'name', 'dept', 'date', 'start', 'end', 'purpose', 'hours'] as const
 
 export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { equipmentId: string; onSubmitted?: (requestId: string) => void; onCancel?: () => void; embedded?: boolean }) {
@@ -252,7 +255,7 @@ export function BookingForm({ equipmentId, onSubmitted, onCancel, embedded }: { 
       </div>
 
       <Field label="Purpose" htmlFor="bf-purpose" error={errs.purpose}>
-        <Textarea id="bf-purpose" value={purpose} onChange={(x) => setPurpose(x.target.value)} maxLength={1000} aria-invalid={!!errs.purpose} />
+        <Textarea id="bf-purpose" value={purpose} onChange={(x) => setPurpose(x.target.value)} maxLength={PURPOSE_MAX} aria-invalid={!!errs.purpose} />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Deadline (optional)" htmlFor="bf-deadline" hint="Helps the priority score.">

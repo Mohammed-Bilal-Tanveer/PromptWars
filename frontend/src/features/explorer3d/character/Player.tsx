@@ -7,11 +7,11 @@ import { findNearest, getInteractables } from '../interactions/registry'
 import { useExplorerStore } from '../stores/explorerStore'
 import { autoWalk, cancelWalk, startWalk } from '../interactions/navigation'
 import { PlayerModel } from './KenneyCharacter'
-
-const WALK = 4.2
-const RUN = 8
-const RADIUS = 0.45
-const PITCH = (52 * Math.PI) / 180
+import {
+  AUTOWALK_MAX_AGE, AUTOWALK_MAX_STUCK, CAMERA_DISTANCE_INSIDE, CAMERA_DISTANCE_OUTSIDE, CAMERA_FOLLOW_RATE,
+  CAMERA_LOOK_HEIGHT, CAMERA_PITCH, CAMERA_START, CLICK_DRAG_PX, DETECT_INTERVAL, IDLE_SPEED, MAX_FRAME_DT,
+  ORBIT_SPEED, PLAYER_RADIUS, RUN_ANIM_THRESHOLD, RUN_SPEED, WALK_SPEED,
+} from './constants'
 
 const skin = new THREE.MeshStandardMaterial({ color: '#f1c27d', roughness: 0.8 })
 const shirt = new THREE.MeshStandardMaterial({ color: '#4f8bff', roughness: 0.7 })
@@ -33,16 +33,16 @@ function ProceduralBody() {
   useFrame((_, dt) => {
     const reduce = useExplorerStore.getState().reduceMotion
     const sp = playerState.speed
-    t.current += dt * (sp > 6 ? 14 : 9) * (sp > 0.1 ? 1 : 0)
-    const amp = reduce ? 0.12 : Math.min(1, sp / 4.2) * (sp > 6 ? 0.9 : 0.6)
+    t.current += dt * (sp > RUN_ANIM_THRESHOLD ? 14 : 9) * (sp > IDLE_SPEED ? 1 : 0)
+    const amp = reduce ? 0.12 : Math.min(1, sp / WALK_SPEED) * (sp > RUN_ANIM_THRESHOLD ? 0.9 : 0.6)
     const s = Math.sin(t.current) * amp
     if (lLeg.current) lLeg.current.rotation.x = s
     if (rLeg.current) rLeg.current.rotation.x = -s
     if (lArm.current) lArm.current.rotation.x = -s
     if (rArm.current) rArm.current.rotation.x = s
     if (body.current) {
-      const idle = sp < 0.1 && !reduce ? Math.sin(performance.now() / 600) * 0.015 : 0
-      body.current.position.y = 0.95 + idle + (sp > 0.1 && !reduce ? Math.abs(Math.sin(t.current)) * 0.05 : 0)
+      const idle = sp < IDLE_SPEED && !reduce ? Math.sin(performance.now() / 600) * 0.015 : 0
+      body.current.position.y = 0.95 + idle + (sp > IDLE_SPEED && !reduce ? Math.abs(Math.sin(t.current)) * 0.05 : 0)
     }
   })
   return (
@@ -100,12 +100,12 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
   const marker = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
   const acc = useRef(0)
-  const camPos = useMemo(() => new THREE.Vector3(0, 12, 26), [])
+  const camPos = useMemo(() => new THREE.Vector3(CAMERA_START.x, CAMERA_START.y, CAMERA_START.z), [])
   const look = useMemo(() => new THREE.Vector3(), [])
   const pos = useMemo(() => ({ x: playerState.x, z: playerState.z }), [])
 
   useFrame((_, dtRaw) => {
-    const dt = Math.min(dtRaw, 0.05)
+    const dt = Math.min(dtRaw, MAX_FRAME_DT)
     const st = useExplorerStore.getState()
     const reduce = st.reduceMotion
     const k = input.keys
@@ -116,7 +116,7 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
       if (k.has('q')) rot -= 1
       if (k.has('r')) rot += 1
     }
-    playerState.yaw += rot * 1.8 * dt + input.orbitDelta
+    playerState.yaw += rot * ORBIT_SPEED * dt + input.orbitDelta
     input.orbitDelta = 0
 
     // movement intent
@@ -144,10 +144,10 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
       const l = Math.hypot(mx, mz) || 1
       mx /= l; mz /= l
       const running = k.has('shift') || input.sprint || Math.hypot(input.joy.x, input.joy.y) > 0.92
-      const speed = (running ? RUN : WALK) * (input.sprint ? 1 : mag)
+      const speed = (running ? RUN_SPEED : WALK_SPEED) * (input.sprint ? 1 : mag)
       pos.x = playerState.x + mx * speed * dt
       pos.z = playerState.z + mz * speed * dt
-      resolveCollisions(pos, RADIUS, colliders)
+      resolveCollisions(pos, PLAYER_RADIUS, colliders)
       playerState.x = pos.x
       playerState.z = pos.z
       playerState.speed = speed
@@ -155,7 +155,7 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
     } else if (autoWalk.target && !paused) {
       const wp = autoWalk.path[0]
       autoWalk.age += dt
-      if (!wp || autoWalk.age > 60 || autoWalk.stuck > 1.2) {
+      if (!wp || autoWalk.age > AUTOWALK_MAX_AGE || autoWalk.stuck > AUTOWALK_MAX_STUCK) {
         cancelWalk()
         playerState.speed = 0
       } else {
@@ -166,11 +166,11 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
           autoWalk.path.shift()
           if (!autoWalk.path.length) { cancelWalk(); playerState.speed = 0 }
         } else {
-          const speed = input.sprint ? RUN : WALK
+          const speed = input.sprint ? RUN_SPEED : WALK_SPEED
           const step = Math.min(speed * dt, d)
           pos.x = playerState.x + (dx / d) * step
           pos.z = playerState.z + (dz / d) * step
-          resolveCollisions(pos, RADIUS, colliders)
+          resolveCollisions(pos, PLAYER_RADIUS, colliders)
           const moved = Math.hypot(pos.x - playerState.x, pos.z - playerState.z)
           autoWalk.stuck = moved < step * 0.3 ? autoWalk.stuck + dt : 0
           playerState.x = pos.x
@@ -190,13 +190,13 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
 
     // follow camera: fixed three-quarter top-down pitch, horizontal orbit only
     const inside = st.insideBuilding != null
-    const dist = inside ? 12 : 16
-    const horiz = dist * Math.cos(PITCH), height = dist * Math.sin(PITCH)
+    const dist = inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE_OUTSIDE
+    const horiz = dist * Math.cos(CAMERA_PITCH), height = dist * Math.sin(CAMERA_PITCH)
     const want = new THREE.Vector3(playerState.x + sy * horiz, height, playerState.z + cy * horiz)
     if (reduce) camPos.copy(want)
-    else camPos.lerp(want, 1 - Math.exp(-6 * dt))
+    else camPos.lerp(want, 1 - Math.exp(-CAMERA_FOLLOW_RATE * dt))
     camera.position.copy(camPos)
-    look.set(playerState.x, 0.8, playerState.z)
+    look.set(playerState.x, CAMERA_LOOK_HEIGHT, playerState.z)
     camera.lookAt(look)
 
     // destination marker
@@ -212,7 +212,7 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
 
     // throttled detection
     acc.current += dt
-    if (acc.current > 0.1) {
+    if (acc.current > DETECT_INTERVAL) {
       acc.current = 0
       const n = findNearest({ x: playerState.x, z: playerState.z }, getInteractables())
       st.setNearest(n)
@@ -234,7 +234,7 @@ export function PlayerRig({ colliders, paused }: { colliders: AABB[]; paused: bo
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.03, 0]}
         onClick={(e) => {
-          if (paused || e.delta > 6) return
+          if (paused || e.delta > CLICK_DRAG_PX) return
           startWalk({ x: e.point.x, z: e.point.z })
         }}
       >

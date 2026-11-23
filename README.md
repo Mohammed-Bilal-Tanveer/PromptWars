@@ -181,8 +181,6 @@ Backend variables are defined in `backend/app/core/config.py` (complete list in 
 | `VITE_BACKEND_WAKE_TIMEOUT_MS` | Recovery polling deadline before "unavailable" | `120000` | frontend |
 | `VITE_BACKEND_HEALTH_POLL_MS` | Base health-poll interval (backs off to 3x) | `4000` | frontend |
 
-`VITE_APP_MODE=demo` appears in `.env.example` files but is not read by any frontend code.
-
 ## API documentation
 - Interactive FastAPI docs: `/docs` (Swagger UI) and `/openapi.json`, served at the host root (not under `/api/v1`). Hosted: https://promptwars-h1kz.onrender.com/docs. Locally: http://localhost:8000/docs.
 - Health: `GET /api/v1/health` (liveness) and `GET /api/v1/health/ready` (checks the database; returns `"database":"postgresql"` on the hosted backend, `"sqlite"` locally).

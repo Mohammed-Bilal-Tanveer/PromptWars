@@ -13,6 +13,7 @@ from app.models import (
     Laboratory,
 )
 from app.services import availability_service as av
+from app.services.scheduling_data import detect_conflicts
 from app.services.serializers import DATA_LABEL, count
 from app.utils_time import campus_tz, local, now_utc
 
@@ -34,12 +35,7 @@ def overview(db: Session) -> dict:
         avg = round(sum(mins) / len(mins), 1)
     proposed = count(db, AuditEvent, AuditEvent.event_type == "alternative_proposed")
     accepted = count(db, AuditEvent, AuditEvent.event_type == "alternative_accepted")
-    try:
-        from app.services.scheduling_service import detect_conflicts  # Agent C
-
-        conflict_count = len(detect_conflicts(db))
-    except Exception:  # noqa: BLE001
-        conflict_count = _conflict_estimate(db, now)
+    conflict_count = len(detect_conflicts(db, now))
     return {
         "total_units": len(units), "units_available": free, "units_occupied": max(occupied, 0),
         "units_maintenance": maint,
@@ -52,15 +48,6 @@ def overview(db: Session) -> dict:
         "laboratory_count": count(db, Laboratory), "department_count": count(db, Department),
         "is_demo_data": True, "data_label": DATA_LABEL,
     }
-
-
-def _conflict_estimate(db: Session, now) -> int:
-    """Pending requests whose window has no free unit right now."""
-    n = 0
-    for r in db.scalars(select(BookingRequest).where(BookingRequest.status.in_(["pending_review", "waitlisted", "alternative_proposed"]))).all():
-        if not av.free_units(db, r.equipment_type, r.requested_start_at, r.requested_end_at):
-            n += 1
-    return n
 
 
 def utilisation(db: Session) -> dict:

@@ -16,7 +16,7 @@ export function resetErrorMessage(e: unknown): string {
 
 /** Only rendered when the server explicitly enables demo reset. Restores the fictional sample scenario only. */
 export function DemoResetButton() {
-  const enabled = !!(usePublicConfig().data as any)?.demo_reset_enabled
+  const enabled = !!usePublicConfig().data?.demo_reset_enabled
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)

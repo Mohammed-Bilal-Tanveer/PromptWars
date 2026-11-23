@@ -12,10 +12,16 @@ from app.services import ai_service
 from app.services import equipment_matcher as matcher
 from app.utils_time import iso, to_utc
 
+MAX_SUGGESTED_DEPARTMENTS = 5
+MIN_DEPT_KEYWORD_LEN = 4  # words longer than this count as a department-name keyword
+REQUIREMENT_NAME_MAX_LEN = 200
+KNOWN_ANALYSIS_SOURCES = ("openai", "demo_fallback", "manual")
+
 router = APIRouter(tags=["projects"])
 
 
 def client_ip(request: Request) -> str:
+    """Best-effort client address (first X-Forwarded-For hop when behind a proxy)."""
     fwd = request.headers.get("x-forwarded-for")
     if fwd:
         return fwd.split(",")[0].strip()
@@ -23,6 +29,7 @@ def client_ip(request: Request) -> str:
 
 
 def rate_limit(limiter: ai_service.SlidingWindowLimiter, request: Request) -> None:
+    """Raise RateLimited when the caller IP exceeded ``limiter``."""
     wait = limiter.check(client_ip(request))
     if wait is not None:
         raise RateLimited("Too many requests. Please wait a moment and try again.", {"retry_after_seconds": int(wait)})
@@ -32,7 +39,7 @@ def _resolve_departments(db: Session, names: list[str], matches, preferred_ids: 
     depts = db.execute(select(Department).order_by(Department.id)).scalars().all()
     out: dict[str, str] = {}
 
-    def add(d):
+    def add(d: Department | None) -> None:
         if d is not None and d.id not in out:
             out[d.id] = d.name
 
@@ -43,13 +50,13 @@ def _resolve_departments(db: Session, names: list[str], matches, preferred_ids: 
         nl = n.lower().strip()
         for d in depts:
             dl = d.name.lower()
-            if nl and (nl in dl or dl in nl or any(w in dl for w in nl.split() if len(w) > 4)):
+            if nl and (nl in dl or dl in nl or any(w in dl for w in nl.split() if len(w) > MIN_DEPT_KEYWORD_LEN)):
                 add(d)
                 break
     for m in matches:
         if m.best and m.match_status in ("exact", "partial", "unavailable"):
             add(next((d for d in depts if d.id == m.best.department_id), None))
-    return [DepartmentRef(id=i, name=n) for i, n in list(out.items())[:5]]
+    return [DepartmentRef(id=i, name=n) for i, n in list(out.items())[:MAX_SUGGESTED_DEPARTMENTS]]
 
 
 def analyse_project(db: Session, req: ProjectAnalyseRequest) -> AnalysisResult:
@@ -81,7 +88,7 @@ def project_out(p: Project) -> ProjectOut:
     return ProjectOut(
         id=p.id, title=p.title, description=p.description, category=p.category, requester_name=p.requester_name,
         requester_department_id=p.requester_department_id, deadline=iso(p.deadline), estimated_total_hours=p.estimated_total_hours,
-        analysis_source=p.analysis_source if p.analysis_source in ("openai", "demo_fallback", "manual") else "manual",
+        analysis_source=p.analysis_source if p.analysis_source in KNOWN_ANALYSIS_SOURCES else "manual",
         analysis=analysis, created_at=iso(p.created_at), updated_at=iso(p.updated_at),
     )
 
@@ -103,7 +110,7 @@ def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
         for m in a.matches:
             matched = m.best.equipment_type_id if (m.best and m.match_status != "unmatched") else None
             db.add(ProjectRequirement(
-                project_id=p.id, requirement_name=m.requirement_name[:200], priority=m.priority, capability_tag=m.capability_tag,
+                project_id=p.id, requirement_name=m.requirement_name[:REQUIREMENT_NAME_MAX_LEN], priority=m.priority, capability_tag=m.capability_tag,
                 reason=m.reason, matched_equipment_type_id=matched, match_status=m.match_status,
             ))
     db.commit()

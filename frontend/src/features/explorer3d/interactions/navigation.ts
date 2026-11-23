@@ -15,6 +15,9 @@ export interface Destination {
   heading: number
 }
 
+/** Duration of the fade-out before a teleport is applied (ms). */
+const TELEPORT_FADE_MS = 250
+
 const bDest = (id: string): Destination => {
   const b = BUILDINGS.find((q) => q.id === id)!
   const s = doorOutside(b)
@@ -43,7 +46,7 @@ function segHitsRect(a: Pt, b: Pt, r: { minX: number; maxX: number; minZ: number
   return true
 }
 const footprint = (b: BuildingDef, m: number) => ({ minX: b.x - b.w / 2 - m, maxX: b.x + b.w / 2 + m, minZ: b.z - b.d / 2 - m, maxZ: b.z + b.d / 2 + m })
-const len = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.z - b.z)
+const len = (a: Pt, b: Pt): number => Math.hypot(a.x - b.x, a.z - b.z)
 
 function detour(from: Pt, to: Pt): Pt[] {
   for (const b of BUILDINGS) {
@@ -94,15 +97,15 @@ export function planPath(from: Pt, to: Pt): Pt[] {
 // ---- auto-walk runtime state (read by PlayerRig every frame) ----
 export const autoWalk: { path: Pt[]; target: Pt | null; age: number; stuck: number } = { path: [], target: null, age: 0, stuck: 0 }
 
-export function startWalk(to: Pt) {
+export function startWalk(to: Pt): void {
   autoWalk.path = planPath({ x: playerState.x, z: playerState.z }, to)
   autoWalk.target = { x: to.x, z: to.z }
   autoWalk.age = 0
   autoWalk.stuck = 0
 }
-export function cancelWalk() { autoWalk.path = []; autoWalk.target = null; autoWalk.age = 0; autoWalk.stuck = 0 }
+export function cancelWalk(): void { autoWalk.path = []; autoWalk.target = null; autoWalk.age = 0; autoWalk.stuck = 0 }
 
-export function walkToDestination(d: Destination) {
+export function walkToDestination(d: Destination): void {
   useExplorerStore.getState().closePanel()
   startWalk(d.stand)
 }
@@ -114,12 +117,12 @@ function place(d: Destination) {
   playerState.speed = 0
 }
 
-export function teleportToDestination(d: Destination) {
+export function teleportToDestination(d: Destination): void {
   const st = useExplorerStore.getState()
   st.closePanel()
   cancelWalk()
   input.joy.x = 0; input.joy.y = 0
   if (st.reduceMotion) { place(d); return }
   st.setFade(true)
-  setTimeout(() => { place(d); useExplorerStore.getState().setFade(false) }, 250)
+  setTimeout(() => { place(d); useExplorerStore.getState().setFade(false) }, TELEPORT_FADE_MS)
 }

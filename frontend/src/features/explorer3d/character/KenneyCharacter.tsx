@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { CHARACTER_SCALE, characterUrl } from '../scene/kenney'
 import { playerState } from './playerState'
+import { IDLE_SPEED, RUN_ANIM_THRESHOLD, WALK_SPEED } from './constants'
 import { useExplorerStore } from '../stores/explorerStore'
 
 export type AnimName = 'idle' | 'walk' | 'sprint' | 'interact-right' | 'emote-yes'
@@ -74,8 +75,8 @@ export function PlayerModel({ id, fallback }: { id: string; fallback: ReactNode 
             const reduce = useExplorerStore.getState().reduceMotion
             const sp = playerState.speed
             if (performance.now() < interactUntil.current && sp < 0.1) play('interact-right', 1, true)
-            else if (sp > 6) play('sprint', reduce ? 0.8 : 1)
-            else if (sp > 0.1) play('walk', Math.min(1.35, Math.max(0.7, sp / 4.2)))
+            else if (sp > RUN_ANIM_THRESHOLD) play('sprint', reduce ? 0.8 : 1)
+            else if (sp > IDLE_SPEED) play('walk', Math.min(1.35, Math.max(0.7, sp / WALK_SPEED)))
             else play('idle', reduce ? 0.5 : 1)
           }}
         />

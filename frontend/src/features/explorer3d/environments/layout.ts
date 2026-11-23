@@ -43,15 +43,15 @@ export const POND = { x: -52, z: 52, r: 9 }
 export const DOOR_WIDTH = 2.9 // matches the Kenney wide doorway opening
 const WALL_T = 0.5
 
-export const buildingById = (id: string) => BUILDINGS.find((b) => b.id === id)
-export const buildingForDept = (deptId: string) => BUILDINGS.find((b) => b.departmentIds.includes(deptId))
+export const buildingById = (id: string): BuildingDef | undefined => BUILDINGS.find((b) => b.id === id)
+export const buildingForDept = (deptId: string): BuildingDef | undefined => BUILDINGS.find((b) => b.departmentIds.includes(deptId))
 
 /** World position of the door threshold (at the wall line). */
-export const doorPos = (b: BuildingDef) => ({ x: b.x, z: b.z + b.facing * (b.d / 2) })
+export const doorPos = (b: BuildingDef): { x: number; z: number } => ({ x: b.x, z: b.z + b.facing * (b.d / 2) })
 /** Point just outside the door. */
-export const doorOutside = (b: BuildingDef, off = 2.5) => ({ x: b.x, z: b.z + b.facing * (b.d / 2 + off) })
+export const doorOutside = (b: BuildingDef, off = 2.5): { x: number; z: number } => ({ x: b.x, z: b.z + b.facing * (b.d / 2 + off) })
 
-export function isInside(b: BuildingDef, x: number, z: number) {
+export function isInside(b: BuildingDef, x: number, z: number): boolean {
   return Math.abs(x - b.x) < b.w / 2 - 0.2 && Math.abs(z - b.z) < b.d / 2 - 0.2
 }
 
@@ -63,7 +63,7 @@ const SLOTS: [number, number][] = [
 ]
 export const MAX_ANCHORS = SLOTS.length
 
-export function slotWorld(b: BuildingDef, i: number) {
+export function slotWorld(b: BuildingDef, i: number): { x: number; z: number } {
   const [u, v] = SLOTS[i % SLOTS.length]
   return { x: b.x + u, z: b.z + b.facing * v }
 }

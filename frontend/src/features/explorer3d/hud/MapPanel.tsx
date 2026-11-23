@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BUILDINGS, CAMPUS_BOUND } from '../environments/layout'
-import { playerState } from '../character/playerState'
+import { usePlayerPose } from '../character/usePlayerPose'
 import { DESTINATIONS, teleportToDestination, walkToDestination } from '../interactions/navigation'
 import { Button, cx, IconMapPin } from '@/components/ui'
 import { NetworkView } from './NetworkView'
@@ -21,11 +21,7 @@ export function MapPanel() {
 
 function CampusMap() {
   const [sel, setSel] = useState<string | null>(null)
-  const [p, setP] = useState({ x: playerState.x, z: playerState.z, h: playerState.heading })
-  useEffect(() => {
-    const t = setInterval(() => setP({ x: playerState.x, z: playerState.z, h: playerState.heading }), 150)
-    return () => clearInterval(t)
-  }, [])
+  const p = usePlayerPose()
   const B = CAMPUS_BOUND
   const V = B + 4
   const fs = V / 16

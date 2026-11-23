@@ -1,10 +1,11 @@
+"""Demo Approval Desk: queue, approve, reject and propose alternatives."""
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.routes.bookings import paginate, request_filters
+from app.api.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, page_envelope, paginate, request_filters
 from app.core.database import get_db
 from app.models import BookingRequest
 from app.schemas.requests import AlternativeBody, ApproveBody, RejectBody
@@ -17,11 +18,11 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 @router.get("/queue")
 def queue(status: str = "pending_review,waitlisted,alternative_proposed", department_id: str | None = None,
           equipment_type_id: str | None = None, date: date | None = None, page: int = Query(1, ge=1),
-          page_size: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)):
+          page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE), db: Session = Depends(get_db)):
     stmt = request_filters(select(BookingRequest), status, department_id, equipment_type_id, date, None).order_by(
         BookingRequest.priority_score.desc(), BookingRequest.created_at)
     total, rows = paginate(db, stmt, page, page_size)
-    return {"items": [request_with_extras(db, r) for r in rows], "total": total, "page": page, "page_size": page_size}
+    return page_envelope([request_with_extras(db, r) for r in rows], total, page, page_size)
 
 
 @router.post("/{request_id}/approve")

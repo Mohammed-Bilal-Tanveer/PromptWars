@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useAppStore, type Toast } from '@/stores/appStore'
 import { cx, IconAlert, IconCheckCircle, IconInfo, IconX } from '@/components/ui'
 
+const ERROR_DISMISS_MS = 7000
+const DEFAULT_DISMISS_MS = 4500
+
 const KIND = {
   success: { icon: IconCheckCircle, cls: 'text-emerald-600' },
   error: { icon: IconAlert, cls: 'text-red-600' },
@@ -14,7 +17,7 @@ function ToastItem({ t, dismiss }: { t: Toast; dismiss: (id: number) => void }) 
   const k = KIND[t.kind]
   useEffect(() => {
     if (paused) return
-    const h = setTimeout(() => dismiss(t.id), t.kind === 'error' ? 7000 : 4500)
+    const h = setTimeout(() => dismiss(t.id), t.kind === 'error' ? ERROR_DISMISS_MS : DEFAULT_DISMISS_MS)
     return () => clearTimeout(h)
   }, [paused, t.id, t.kind, dismiss])
   return (

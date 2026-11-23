@@ -17,7 +17,8 @@ export class ApiError extends Error {
   }
 }
 
-type Params = Record<string, string | number | boolean | undefined | null | string[]>
+/** Query-string source: any plain object; undefined/null/empty values are skipped, arrays are comma-joined. */
+type Params = object
 
 export function buildQuery(params?: Params): string {
   if (!params) return ''

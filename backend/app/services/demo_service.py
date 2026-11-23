@@ -51,6 +51,7 @@ def _purge(now: float) -> None:
 
 
 def issue_token() -> str:
+    """Issue a one-time demo reset token valid for TOKEN_TTL_SECONDS."""
     now = time.monotonic()
     token = secrets.token_urlsafe(24)
     with _lock:
@@ -69,6 +70,7 @@ def consume_token(token: str) -> bool:
 
 
 def clear_tokens() -> None:
+    """Forget all issued demo reset tokens."""
     with _lock:
         _tokens.clear()
 

@@ -5,15 +5,17 @@ import { Button, Spinner } from '@/components/ui'
 import { useConnectionStore } from './connectionStore'
 import { connectionConfig, probeReady, retryNow, startRecovery, stopRecovery } from './healthMonitor'
 
-function useElapsedSeconds(since: number | null, active: boolean) {
+const TICK_MS = 1000
+
+function useElapsedSeconds(since: number | null, active: boolean): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!active) return
     setNow(Date.now())
-    const id = setInterval(() => setNow(Date.now()), 1000)
+    const id = setInterval(() => setNow(Date.now()), TICK_MS)
     return () => clearInterval(id)
   }, [active, since])
-  return since ? Math.max(0, Math.floor((now - since) / 1000)) : 0
+  return since ? Math.max(0, Math.floor((now - since) / TICK_MS)) : 0
 }
 
 function AlertGlyph() {

@@ -2,7 +2,7 @@ import { api } from './apiClient'
 import type { ApprovalDecision, BookingRequest, BookingRequestQuery, Paginated } from '@/types/api'
 
 export const approvalService = {
-  queue: (q: BookingRequestQuery = {}) => api.get<Paginated<BookingRequest>>('/approvals/queue', q as any),
+  queue: (q: BookingRequestQuery = {}) => api.get<Paginated<BookingRequest>>('/approvals/queue', q),
   approve: (id: string, b: { note?: string; reviewer_name?: string } = {}) =>
     api.post<ApprovalDecision>(`/approvals/${id}/approve`, b),
   reject: (id: string, b: { reason: string; note?: string }) => api.post<BookingRequest>(`/approvals/${id}/reject`, b),

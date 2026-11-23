@@ -5,7 +5,7 @@ import type {
 } from '@/types/api'
 
 export const equipmentService = {
-  list: (q: EquipmentQuery) => api.get<Paginated<EquipmentType>>('/equipment', q as any),
+  list: (q: EquipmentQuery) => api.get<Paginated<EquipmentType>>('/equipment', q),
   categories: () => api.get<string[]>('/equipment/categories'),
   recommendations: (capabilities: string[], limit = 6) =>
     api.get<EquipmentRecommendation[]>('/equipment/recommendations', { capabilities, limit }),

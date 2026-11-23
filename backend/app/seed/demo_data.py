@@ -4,6 +4,7 @@ import random
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -20,6 +21,7 @@ from app.models import (
     Project,
 )
 from app.seed.catalog import DEPARTMENTS, EQUIPMENT, LABS
+from app.services.priority import compute_priority
 from app.utils_time import campus_tz, local_dt, now_utc
 
 log = logging.getLogger("lablink.seed")
@@ -84,12 +86,12 @@ def _audit(db, etype, entity_type, entity_id, desc, actor="System", note=None, m
 
 
 def _priority(db, **kw):
+    """Priority score for a seeded request; falls back to neutral values if scoring fails."""
     try:
-        from app.services.priority import compute_priority
-
         r = compute_priority(db, **kw)
         return r["score"], r["factors"]
-    except Exception:  # noqa: BLE001 - priority module may not exist yet / fails in seed
+    except (SQLAlchemyError, ArithmeticError, KeyError, TypeError, ValueError):
+        log.warning("seed priority scoring failed; using neutral values", exc_info=True)
         return 0.5, {"deadline_urgency": 0.5, "waiting_time": 0.3, "fairness": 0.5, "preference_fit": 0.5}
 
 

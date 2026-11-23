@@ -13,6 +13,7 @@ REVIEWABLE = ("pending_review", "waitlisted", "alternative_proposed")
 
 
 def approve(db: Session, request_id: str, note: str | None, reviewer: str | None) -> tuple[BookingRequest, Booking]:
+    """Approve a pending request, creating a confirmed booking."""
     r = get_request(db, request_id)
     if r.status not in REVIEWABLE:
         raise InvalidState(f"Request in status '{r.status}' cannot be approved")
@@ -43,6 +44,7 @@ def approve(db: Session, request_id: str, note: str | None, reviewer: str | None
 
 
 def reject(db: Session, request_id: str, reason: str, note: str | None, reviewer: str | None = None) -> BookingRequest:
+    """Reject a pending request with a reason."""
     r = get_request(db, request_id)
     if r.status not in REVIEWABLE:
         raise InvalidState(f"Request in status '{r.status}' cannot be rejected")
@@ -60,6 +62,7 @@ def reject(db: Session, request_id: str, reason: str, note: str | None, reviewer
 
 
 def propose_alternative(db: Session, request_id: str, data, reviewer: str | None = None) -> BookingRequest:
+    """Propose an alternative slot for a pending request."""
     r = get_request(db, request_id)
     if r.status not in REVIEWABLE:
         raise InvalidState(f"Request in status '{r.status}' cannot receive an alternative")
@@ -98,4 +101,5 @@ def propose_alternative(db: Session, request_id: str, data, reviewer: str | None
 
 
 def queue_ids(db: Session):
+    """Base select for the reviewable request queue."""
     return select(BookingRequest)

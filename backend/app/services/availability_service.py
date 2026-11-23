@@ -59,6 +59,7 @@ def build_busy_index(db: Session, start: datetime, end: datetime, unit_ids: list
 
 
 def unit_free(idx: dict[str, list[Interval]], unit: EquipmentUnit, start: datetime, end: datetime) -> bool:
+    """True if the unit has no busy interval overlapping [start, end)."""
     if unit.status != "operational":
         return False
     return not any(overlaps(start, end, iv.start, iv.end) for iv in idx.get(unit.id, []))
@@ -73,6 +74,7 @@ def free_units(db: Session, et: EquipmentType, start: datetime, end: datetime,
 
 
 def lab_day_hours(et: EquipmentType, d: date) -> tuple[datetime, datetime] | None:
+    """Lab opening/closing datetimes for the date, or None when the lab is closed that day."""
     lab = et.laboratory
     if lab.status != "open" or d.weekday() not in (lab.operating_days or []):
         return None
@@ -81,6 +83,7 @@ def lab_day_hours(et: EquipmentType, d: date) -> tuple[datetime, datetime] | Non
 
 
 def hard_constraint_reasons(et: EquipmentType, start: datetime, end: datetime, now: datetime | None = None) -> list[str]:
+    """Reasons the requested window violates hard rules (empty list when valid)."""
     now = now or now_utc()
     reasons: list[str] = []
     if end <= start:
@@ -247,6 +250,7 @@ def utilisation_map(db: Session, window_start: datetime, window_end: datetime) -
 
 
 def pct(booked: float, capacity: float) -> float:
+    """Booked share of capacity as a 0-100 percentage (1 dp); 0 when capacity is zero."""
     return round(min(100.0, 100.0 * booked / capacity), 1) if capacity > 0 else 0.0
 
 

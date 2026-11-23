@@ -9,10 +9,24 @@ Pure functions (no DB) are at the top; ``compute_priority`` is the thin DB wrapp
 """
 from __future__ import annotations
 
+import logging
 import math
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.core.config import get_settings
+from app.models import Booking, BookingRequest
+
+log = logging.getLogger("lablink.priority")
+
+DEFAULT_TZ = "Asia/Kolkata"
+CORE_HOURS_START = 9
+CORE_HOURS_END = 17
+COUNTED_BOOKING_STATUSES = ("confirmed", "completed")
 
 DEFAULT_WEIGHTS = {"deadline": 0.40, "waiting": 0.25, "fairness": 0.20, "preference": 0.15}
 URGENT_HOURS = 24.0
@@ -26,12 +40,8 @@ PREFERENCE_OFF_HOURS = 0.6
 
 
 def get_weights() -> dict[str, float]:
-    try:
-        from app.core.config import get_settings
-
-        s = get_settings()
-    except Exception:  # pragma: no cover
-        s = None
+    """Return the configured priority weights, falling back to ``DEFAULT_WEIGHTS``."""
+    s = get_settings()
     return {
         "deadline": float(getattr(s, "w_deadline", DEFAULT_WEIGHTS["deadline"])),
         "waiting": float(getattr(s, "w_waiting", DEFAULT_WEIGHTS["waiting"])),
@@ -76,19 +86,20 @@ def fairness_factor(recent_hours: float) -> float:
     return _clamp(1.0 - min(1.0, max(0.0, recent_hours) / FAIRNESS_CAP_HOURS))
 
 
-def preference_fit(requested_start: datetime | None, tz_name: str = "Asia/Kolkata") -> float:
+def preference_fit(requested_start: datetime | None, tz_name: str = DEFAULT_TZ) -> float:
     """1.0 if the requested start is within core campus hours 09:00-17:00 local, else 0.6."""
     s = _utc(requested_start)
     if s is None:
         return PREFERENCE_OFF_HOURS
     try:
         local = s.astimezone(ZoneInfo(tz_name))
-    except Exception:  # pragma: no cover
+    except (ZoneInfoNotFoundError, ValueError):  # pragma: no cover
         local = s
-    return PREFERENCE_IN_HOURS if 9 <= local.hour < 17 else PREFERENCE_OFF_HOURS
+    return PREFERENCE_IN_HOURS if CORE_HOURS_START <= local.hour < CORE_HOURS_END else PREFERENCE_OFF_HOURS
 
 
 def combine(factors: dict[str, float], weights: dict[str, float] | None = None) -> float:
+    """Weighted sum of the four factors, clamped to 0..1."""
     w = weights or get_weights()
     score = (
         w["deadline"] * factors["deadline_urgency"]
@@ -107,8 +118,9 @@ def compute_priority_pure(
     requested_start: datetime | None,
     now: datetime | None = None,
     weights: dict[str, float] | None = None,
-    tz_name: str = "Asia/Kolkata",
+    tz_name: str = DEFAULT_TZ,
 ) -> dict[str, Any]:
+    """Pure (DB-free) priority computation returning ``{"score", "factors"}``."""
     now = _utc(now) or datetime.now(UTC)
     factors = {
         "deadline_urgency": round(deadline_urgency(deadline, now), 4),
@@ -124,23 +136,18 @@ def recent_allocated_hours(db, department_id: str | None, requester_name: str | 
 
     Keyed on department and (case-insensitive) requester name solely to measure *usage*.
     """
-    try:
-        from sqlalchemy import select
-
-        from app.models import Booking, BookingRequest  # type: ignore
-    except Exception:  # pragma: no cover
-        return 0.0
     since = now - timedelta(days=FAIRNESS_WINDOW_DAYS)
     stmt = (
         select(Booking.start_at, Booking.end_at, BookingRequest.requester_department_id, BookingRequest.requester_name)
         .join(BookingRequest, BookingRequest.id == Booking.booking_request_id)
-        .where(Booking.status.in_(["confirmed", "completed"]), Booking.end_at >= since)
+        .where(Booking.status.in_(COUNTED_BOOKING_STATUSES), Booking.end_at >= since)
     )
     total = 0.0
     name = (requester_name or "").strip().lower()
     try:
         rows = db.execute(stmt).all()
-    except Exception:
+    except SQLAlchemyError:
+        log.warning("recent_allocated_hours query failed; treating fairness as neutral", exc_info=True)
         return 0.0
     for s, e, dept, rname in rows:
         if department_id and dept != department_id:
@@ -152,12 +159,7 @@ def recent_allocated_hours(db, department_id: str | None, requester_name: str | 
 
 
 def _campus_tz() -> str:
-    try:
-        from app.core.config import get_settings
-
-        return get_settings().campus_timezone or "Asia/Kolkata"
-    except Exception:  # pragma: no cover
-        return "Asia/Kolkata"
+    return get_settings().campus_timezone or DEFAULT_TZ
 
 
 def compute_priority(
@@ -171,6 +173,7 @@ def compute_priority(
     requested_start,
     now=None,
 ) -> dict:
+    """Compute the priority score and factors for a request, using DB history for fairness."""
     now = _utc(now) or datetime.now(UTC)
     recent = recent_allocated_hours(db, requester_department_id, requester_name, now) if db is not None else 0.0
     return compute_priority_pure(
@@ -184,6 +187,7 @@ def compute_priority(
 
 
 def reason_codes(factors: dict[str, float]) -> list[str]:
+    """Map factor values to stable reason codes."""
     codes = []
     f = factors
     codes.append("DEADLINE_URGENT" if f["deadline_urgency"] >= 0.8 else "DEADLINE_MODERATE" if f["deadline_urgency"] >= 0.45 else "DEADLINE_RELAXED")
@@ -211,6 +215,7 @@ _REASON_TEXT = {
 
 
 def explain_priority(factors: dict[str, float]) -> list[str]:
+    """Human-readable sentences for each reason code."""
     return [_REASON_TEXT[c] for c in reason_codes(factors)]
 
 

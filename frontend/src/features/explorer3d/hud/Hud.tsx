@@ -6,6 +6,7 @@ import { BUILDINGS, CAMPUS_BOUND, buildingForDept } from '../environments/layout
 import { MENU_TRIGGER_ID } from './ids'
 import { startWalk } from '../interactions/navigation'
 import { input, playerState } from '../character/playerState'
+import { usePlayerPose } from '../character/usePlayerPose'
 import { interactNearest, useExplorerStore, type PanelState } from '../stores/explorerStore'
 import {
   cx, IconArrowLeft, IconBell, IconCalendar, IconChart, IconCheckSquare, IconFlask, IconLogout, IconMessage, IconSearch, IconSettings,
@@ -25,12 +26,8 @@ export function ExitButton() {
 }
 
 export function Minimap({ equipment, highlightedIds }: { equipment: EquipmentType[]; highlightedIds: string[] }) {
-  const [p, setP] = useState({ x: 0, z: 9, h: 0 })
+  const p = usePlayerPose()
   const wp = useExplorerStore((s) => s.waypoint)
-  useEffect(() => {
-    const t = setInterval(() => setP({ x: playerState.x, z: playerState.z, h: playerState.heading }), 150)
-    return () => clearInterval(t)
-  }, [])
   const hiBuildings = useMemo(() => {
     const ids = new Set<string>()
     for (const e of equipment) if (highlightedIds.includes(e.id)) { const b = buildingForDept(e.department_id); if (b) ids.add(b.id) }
