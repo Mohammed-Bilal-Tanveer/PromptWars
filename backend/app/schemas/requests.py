@@ -6,12 +6,12 @@ from pydantic import BaseModel, Field
 
 
 class BookingRequestCreate(BaseModel):
-    project_id: str | None = None
+    project_id: str | None = Field(default=None, max_length=64)
     project_title: str = Field(min_length=1, max_length=300)
     requester_name: str = Field(min_length=1, max_length=150)
-    requester_department_id: str
+    requester_department_id: str = Field(max_length=64)
     equipment_type_id: str
-    requested_unit_id: str | None = None
+    requested_unit_id: str | None = Field(default=None, max_length=80)
     start_at: datetime
     end_at: datetime
     estimated_hours: float | None = Field(default=None, ge=0)

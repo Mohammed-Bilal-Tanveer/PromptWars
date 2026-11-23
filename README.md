@@ -46,8 +46,23 @@ cd frontend; npm run lint; npx vitest run; npm run build
 ```
 
 ## Deployment
-- **Render:** `render.yaml` (FastAPI web service + PostgreSQL; `DATABASE_URL` supplied automatically; set `OPENAI_API_KEY` and `FRONTEND_ORIGIN` in the dashboard).
-- **Vercel:** `vercel.json` (builds `frontend/`, SPA rewrite). Set `VITE_API_BASE_URL=https://<render-service>.onrender.com/api/v1`.
+Both services are deployed from their own sub-folder (set the **Root Directory** in each dashboard).
+
+**Backend — Render, Root Directory `backend`** (`render.yaml` already sets `rootDir: backend`). If you create the service by hand, use:
+
+| Setting | Value |
+|---|---|
+| Runtime / Python | Python 3 (`PYTHON_VERSION=3.12.5`) |
+| Build command | `pip install -r requirements.txt` |
+| Start command | `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health check path | `/api/v1/health/ready` |
+| Env vars | `DATABASE_URL` (from the Render PostgreSQL instance), `APP_ENV=production`, `DEMO_MODE=true`, `CAMPUS_TIMEZONE=Asia/Kolkata`, `FRONTEND_ORIGIN=https://<your-vercel-domain>` (exact origin, no trailing slash), optional `OPENAI_API_KEY` / `OPENAI_MODEL` |
+
+With `DEMO_MODE=true` the app runs migrations and the idempotent seed on start-up, so a fresh database is ready with no manual step.
+
+**Frontend — Vercel, Root Directory `frontend`** (`frontend/vercel.json` adds the SPA rewrite). Leave Install/Build/Output overrides empty (Vite defaults: `npm ci`, `npm run build`, `dist`) and set `VITE_API_BASE_URL=https://<render-service>.onrender.com/api/v1`, then redeploy (it is baked in at build time).
+
+(The root-level `vercel.json` only applies if the Vercel Root Directory is left at the repository root.)
 
 ## Evaluator scenario (README §13.2)
 Landing → Professional Mode → Project Lab → “Use sample project” → analyse → matched equipment → open item → pick a window → request → Demo Approval Desk → approve/reject/propose alternative → My Requests → Scheduling Studio conflict (GPU workstation tomorrow 14:00–16:00) → 3D Campus → same equipment & approval queue → Analytics. A “Guided demo” checklist is available in the app (it never performs actions for you).
